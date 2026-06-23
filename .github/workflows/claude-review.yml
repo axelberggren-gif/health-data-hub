@@ -39,7 +39,11 @@ jobs:
           github.event.pull_request.draft == false &&
           github.event.pull_request.head.repo.full_name == github.repository &&
           contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
-        uses: anthropics/claude-code-action@30544b674398ee15c84819bd87caf8a87e8c7b55 # v1
+        # Pinned to a KNOWN-GOOD commit, not the moving `v1` tag: the v1 HEAD as of
+        # 2026-06-22 (30544b67) regressed and rejects the OAuth token immediately
+        # (is_error on turn 1). 70a6e525 (2026-06-03) is the commit working in the
+        # sibling repo. Dependabot will propose bumps as reviewable PRs. See ADR-0004.
+        uses: anthropics/claude-code-action@70a6e5256e9e2366a1ed5c041904a982ba3a328f # v1 (pinned 2026-06-03)
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
