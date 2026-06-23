@@ -1,0 +1,62 @@
+# Source of truth for repository labels. Synced by .github/workflows/sync-labels.yml.
+# Edit this file + open a PR; the workflow updates GitHub when the change lands on main.
+# Labels not listed here are preserved (skip-delete: true in the workflow).
+
+# Type — what kind of work. Auto-applied by the matching issue template.
+- name: "type:bug"
+  color: "d73a4a"
+  description: "Something is broken."
+- name: "type:idea"
+  color: "a2eeef"
+  description: "New feature or enhancement proposal."
+- name: "type:task"
+  color: "0e8a16"
+  description: "General work item — refactor, follow-up, small feature."
+- name: "type:chore"
+  color: "c2e0c6"
+  description: "Maintenance — dependency bumps, CI, housekeeping."
+- name: "type:docs"
+  color: "0075ca"
+  description: "Documentation only."
+
+# Area — which part of the codebase. Apply at least one when triaging.
+- name: "area:sources"
+  color: "fef2c0"
+  description: "Data source adapters (WHOOP, Mill, future HealthKit/Oura/Garmin)."
+- name: "area:sync"
+  color: "fef2c0"
+  description: "Sync orchestration, idempotent upsert, cursors."
+- name: "area:api"
+  color: "fef2c0"
+  description: "FastAPI routes (oauth, sync, export, health, mill)."
+- name: "area:models"
+  color: "fef2c0"
+  description: "Canonical data model / schema."
+- name: "area:export"
+  color: "fef2c0"
+  description: "JSON / CSV export over the canonical store."
+- name: "area:superapp"
+  color: "fef2c0"
+  description: "Aggregation + insights layer (the planned super-app)."
+- name: "area:infra"
+  color: "fef2c0"
+  description: "CI, workflows, repo plumbing, dependencies."
+
+# Priority — set during triage.
+- name: "prio:P0"
+  color: "b60205"
+  description: "Blocks shipping or correctness — fix now."
+- name: "prio:P1"
+  color: "d93f0b"
+  description: "Important but not blocking."
+- name: "prio:P2"
+  color: "fbca04"
+  description: "Nice to have."
+
+# Meta.
+- name: "status:blocked"
+  color: "5319e7"
+  description: "Waiting on something or someone."
+- name: "good-first-issue"
+  color: "7057ff"
+  description: "Small, well-scoped — good for picking up the project."

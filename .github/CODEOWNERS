@@ -1,0 +1,4 @@
+# Axel owns everything — this auto-requests him as a reviewer on every PR for visibility.
+# (Branch protection does not *require* code-owner approval: a solo owner can't approve
+#  their own PRs. The human gate is Axel pressing "Merge" once checks are green.)
+* @axelberggren-gif

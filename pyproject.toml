@@ -1,0 +1,54 @@
+[project]
+name = "health-data-hub"
+version = "0.1.0"
+description = "Source-agnostic personal health data hub (WHOOP + Mill Sense -> canonical store)."
+requires-python = ">=3.12"
+readme = "README.md"
+
+# Runtime deps live in requirements.txt; dev/CI deps in requirements-dev.txt.
+# pyproject is here for tool config + project metadata, not dependency mgmt.
+
+[tool.ruff]
+# Lint + format config. `ruff check` = lint (incl. import sorting); `ruff format` = formatter.
+line-length = 100
+target-version = "py312"
+extend-exclude = [".venv", "build", "dist"]
+
+[tool.ruff.lint]
+# A pragmatic, non-fussy set: pyflakes (F), pycodestyle (E/W), isort (I),
+# pyupgrade (UP), flake8-bugbear (B), comprehensions (C4). Tighten over time.
+select = ["E", "W", "F", "I", "UP", "B", "C4"]
+ignore = [
+  "E501",  # line length is enforced by the formatter, not the linter
+  "B008",  # FastAPI uses `Depends()` in defaults by design
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests may use assert and slightly looser patterns.
+"tests/*" = ["B011"]
+
+[tool.mypy]
+# PRAGMATIC GREEN BASELINE — this codebase had no prior type-checking history.
+# Goal: catch real breakage (bad imports, obvious type errors) WITHOUT drowning a
+# non-technical owner in noise. Tighten incrementally later (see docs/decisions/).
+python_version = "3.12"
+ignore_missing_imports = true   # third-party libs without stubs don't error
+check_untyped_defs = false      # don't type-check the bodies of untyped functions yet
+warn_unused_ignores = false
+warn_return_any = false
+no_implicit_optional = true
+files = ["app"]
+
+[[tool.mypy.overrides]]
+# The source adapters parse untyped JSON from httpx — keep them lenient for now.
+module = ["app.sources.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[tool.pytest.ini_options]
+# `testpaths` keeps collection fast and predictable. `--import-mode=importlib`
+# avoids sys.path hacks. We always ship >=1 real test, so pytest never exits 5.
+minversion = "7.0"
+addopts = "-q --strict-markers --import-mode=importlib"
+testpaths = ["tests"]
+pythonpath = ["."]

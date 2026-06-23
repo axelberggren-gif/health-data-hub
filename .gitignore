@@ -1,0 +1,63 @@
+# ─────────────────────────────────────────────────────────────────────────
+# SECRETS & PERSONAL DATA — never commit. This repo is PUBLIC.
+# (If you ever see one of these staged in `git status`, STOP and unstage it.)
+# ─────────────────────────────────────────────────────────────────────────
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local databases & their sidecar files (your health data lives here)
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-journal
+*.db-wal
+*.db-journal
+
+# Exports & generated personal-health artifacts (charts, reports, dumps)
+exports/
+report_preview.png
+bedroom_air_vs_sleep.html
+# Generated charts/reports tend to contain your data — ignore by default and
+# opt-in individually with `git add -f` only after confirming they're safe.
+*.png
+*.jpg
+*.jpeg
+*.html
+*.csv
+# Allow-listed docs/assets that are safe to publish go here as exceptions, e.g.:
+# !docs/architecture.png
+
+# Per-developer AI identity (gitignored; copy from .claude-identity.example)
+.claude-identity
+
+# ─────────────────────────────────────────────────────────────────────────
+# Python
+# ─────────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+.eggs/
+build/
+dist/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# ─────────────────────────────────────────────────────────────────────────
+# Editor / OS / Claude Code local state
+# ─────────────────────────────────────────────────────────────────────────
+.DS_Store
+.vscode/
+.idea/
+.claude/settings.local.json

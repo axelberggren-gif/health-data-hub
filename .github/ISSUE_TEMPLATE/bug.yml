@@ -1,0 +1,42 @@
+name: Bug
+description: Something is broken or behaving unexpectedly.
+title: "<short summary of the bug>"
+labels: ["type:bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What went wrong? Include the error message if you have one.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: false
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1.
+        2.
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - sources
+        - sync
+        - api
+        - models
+        - export
+        - superapp
+        - infra
+        - other
+    validations:
+      required: false

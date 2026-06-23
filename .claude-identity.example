@@ -1,0 +1,5 @@
+# Per-developer identity for AI coding agents (the real file is gitignored).
+# Copy this file to `.claude-identity` and fill in your details. Agents read it
+# for branch names (e.g. feat/ax/oura-source) and CHANGELOG attribution.
+initials: ax
+name: Axel Berggren

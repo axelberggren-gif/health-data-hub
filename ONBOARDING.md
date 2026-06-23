@@ -1,0 +1,81 @@
+# Working with this repo (a plain-language guide)
+
+This project is set up to be **AI-first with guardrails**: AI agents write the code, automated
+checks catch mistakes, and **you press the final Merge button**. You don't need to be technical
+to run it. This page explains the few things you'll actually do.
+
+## The big picture
+
+- Nothing reaches the live code (`main`) without going through a **pull request (PR)**.
+- Every PR runs **three automatic checks**. All three must be green before you can merge.
+- One of those checks is an **AI reviewer** that reads the change against this project's rules
+  (in `AGENTS.md`) and **blocks** anything risky.
+- When the checks are green, **you click "Merge"**. That's the only manual step.
+
+## The three checks (what each green check means)
+
+| Check | What it proves | If it's red (failed) |
+|-------|----------------|----------------------|
+| **ci** | The code is formatted, type-correct, and the tests pass | Something is broken in the code — the AI should fix it and push again |
+| **claude-review** | The AI reviewer found no bugs, no leaked secrets/data, and no broken project rules | Open the PR's "Files changed" / review comments to see what it flagged |
+| **pr-title-lint** | The PR title is in the required format (e.g. `feat: add oura source`) | Edit the PR title to start with a type like `feat:` or `fix:` |
+
+## Your normal flow
+
+1. Ask the AI (in Claude Code) to do something. It creates a branch and opens a PR.
+2. Wait a minute or two for the checks to run (you'll see spinners, then ✓ or ✗ on the PR page).
+3. **All green?** Click the green **Merge** button (choose "Squash and merge"). Done.
+4. **Something red?** See below.
+
+## How to read a "blocked" PR
+
+On the PR page, scroll to the checks box near the bottom:
+- A red ✗ next to **claude-review** → click **"Details"**, then read the review summary and the
+  inline comments. They're written in plain language and say what to change.
+- A red ✗ next to **ci** → the code itself is broken. Tell the AI "CI is failing, please fix it"
+  — it can read the same logs and push a fix to the same PR. The checks re-run automatically.
+- A red ✗ next to **pr-title-lint** → just edit the PR title (pencil icon) to start with
+  `feat:`, `fix:`, `docs:`, `chore:`, etc.
+
+## When the AI reviewer requests changes
+
+Just tell the AI: *"The reviewer requested changes on this PR, please address the comments."* It
+will read the comments, push new commits to the same branch, and the reviewer re-runs on its own.
+You don't merge until it turns green.
+
+## Emergency: merging anyway (rare)
+
+The rules are there to protect you, so this should almost never happen. But if a check is wrong or
+stuck and you genuinely need to merge:
+
+1. On the PR page, as the repo admin you'll see an option to merge despite failing requirements
+   ("Merge without waiting for requirements to be met" / an admin override).
+2. Use it only when you understand why the check is wrong.
+3. Afterwards, ask the AI to add a short note in `docs/decisions/` explaining why — so there's a
+   record.
+
+## One-time setup you need to do (the parts I can't do for you)
+
+1. **Give the AI reviewer its key.** In your terminal run `claude setup-token`, copy the token it
+   prints, then run:
+   `gh secret set CLAUDE_CODE_OAUTH_TOKEN --repo axelberggren-gif/health-data-hub`
+   and paste the token when prompted. (Or I can run this for you if you paste me the token.)
+2. **Install the Claude GitHub App** on the repo: https://github.com/apps/claude → Install → pick
+   this repo. This lets the reviewer post its review.
+3. **Turn on 2FA** for your GitHub account (Settings → Password and authentication). You're the
+   admin of a public repo wired to your Claude token — protect the account.
+4. **Rotate your secrets once** as a precaution: re-issue the WHOOP **Client Secret** in the WHOOP
+   developer dashboard and change your **Mill** password, then update your local `.env`. (Your
+   `.env` was never committed, but rotating once removes any doubt.)
+
+## If the AI reviewer suddenly stops working
+
+The token from `claude setup-token` expires eventually. The symptom: `claude-review` starts
+failing or never finishes, and PRs won't go green. The fix: re-run step 1 above to mint a fresh
+token and update the secret.
+
+## Where the rules live
+
+- `AGENTS.md` — the rules the AI follows and the reviewer enforces.
+- `docs/decisions/` — why things are the way they are (decisions recorded over time).
+- `SECURITY.md` — the security model and how to report a problem.

@@ -1,0 +1,47 @@
+name: ci
+
+# Runs the same verify loop as `make check`. Required to pass before any merge to main.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Least privilege: CI only needs to read the repository.
+permissions:
+  contents: read
+
+jobs:
+  # Job name = the required status-check context. Single Python version (no matrix)
+  # so the context is exactly `build` — branch protection requires this exact name.
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      # Tests use a throwaway temp SQLite DB and make NO real network calls —
+      # no real WHOOP/Mill credentials are ever present in CI.
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Format check (ruff)
+        run: ruff format --check .
+
+      - name: Type check (mypy)
+        run: mypy app
+
+      - name: Tests (pytest)
+        run: pytest
