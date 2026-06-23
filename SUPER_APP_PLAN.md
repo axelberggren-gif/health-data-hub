@@ -30,11 +30,13 @@ This repo is already a working, source-agnostic ingestion **backend** — not a 
 - **Insight model:** **Claude API** for the daily brief (C1) + ask-anything (C3). We send only *pre-computed summary features*, never raw data dumps — keeps cost negligible and exposure minimal. Built behind a model-agnostic `LLMProvider` seam so a local open model can be swapped in later via config. Correlations / anomalies / training-load (C2/C5/C6/C7) are plain statistics — **no model, no tokens**.
 - **Client:** Responsive **web app (PWA)** for V1 (dashboard + insights), installable on phone. Native iOS comes later, with location (A12) + the Phase 5 sleep app.
 - **Hosting:** **Local (your Mac)** for V1 — no push/digests yet, data stays put. Move to an always-on host (Fly.io / Render + Postgres) when automation/notifications arrive.
+- **Knowledge layer:** a compounding *self-model* alongside the metrics (numbers stay in SQL). Start as node/edge/insight tables in the existing DB, **Claude-compiled** (compile-ahead, à la the LLM-wiki pattern) and **GraphRAG-retrieved** to enrich the brief & Q&A; graduate to an embeddable graph (Kuzu) only if multi-hop hurts. Local-first; confidence + provenance on every insight. (See *Knowledge layer* below.)
 
 **V1 — see everything + cheap inputs** *(data you already have + easy external factors + light logging)*
 - Dashboard: B1 Today view · B2 readiness score · B3 trends + anomaly flags · B4 timeline · B5 reports
 - Inputs: A3 check-in · A5 alcohol/caffeine · A10 supplements *(one quick "daily log")* · A4 weather/daylight *(auto, free API)*
 - Insights: C2 correlations · C5 illness early-warning · C6 training-load *(WHOOP-only until Strava)* · C1 daily brief · C3 ask-anything
+- Knowledge layer: the insight step **emits knowledge nodes** (entities · events · insights w/ provenance + confidence) from day one — the full store is a V2/V3 build
 
 **V2 — more inputs + the coach**
 - A2 Apple Health → Sleep Cycle + steps + scale (A6) · A1 Strava *(gap-fill only)* · A7 Google Calendar → D5 recovery-aware calendar · A11 food + E5 photo food · D2 voice check-in · C4 weekly/monthly report · E1 experiments · **E2 goals + training goal-coach** · **E3 travel planning / jet-lag**
@@ -102,6 +104,38 @@ Reserving these costs almost nothing today and future-proofs the store.
 
 ---
 
+## Knowledge layer — your compounding self-model
+
+A second store *alongside* the canonical metrics — not instead of them. The numbers stay in SQL (graphs are poor at dense time-series); this layer holds the *fact-shaped* knowledge SQL can't reason over, and it's what turns six months of charts into better decisions. It becomes the long-term memory shared by the daily brief, ask-anything, experiments, and the training coach.
+
+**What lives here** (every node links back to the time-series as evidence):
+- **Entities** — people, places (Home, the cabin, hotels), activities, supplements, conditions.
+- **Events / episodes** — "moved apartment", "calf injury", "started magnesium", "trip to Spain". The life context WHOOP knows nothing about — and where the highest-value decisions hide.
+- **Insights** — "alcohol → −30 min REM", each with **provenance** (links to the evidence rows) + **confidence** + sample size.
+- **Preferences & goals** — what you're optimising for.
+
+**How it's populated — compile-ahead (the Karpathy "LLM-wiki" pattern), on the Claude pipeline we already chose.** The nightly job computes the stats; Claude then *distils* them — plus your notes, check-ins and events — into knowledge nodes. Self-updating and compounding: knowledge accrues instead of being re-derived per query. (Google's OKF does this at the file-format level; your Claude `memory/` is already a mini version of it.)
+
+**How it's used — GraphRAG-lite.** Before a daily brief or an ask-anything answer, pull the relevant subgraph ("what do we know about Axel relevant to today?") and feed it to Claude alongside the day's numbers. The system gets smarter about *you* over time.
+
+**Engine — start light, graduate only on pain:**
+
+| Option | Fit |
+|---|---|
+| **Node/edge/insight tables in the existing DB** | ✅ Start here — graph-shaped, joins to metrics for evidence, zero new infra |
+| Embeddable property graph (Kuzu — "SQLite for graphs") | ◐ Graduate when multi-hop SQL joins get painful |
+| OKF-style markdown export | ◐ Human-readable view (Obsidian / git) — an export target, not the engine |
+| RDF + ontology · vector store · Neo4j | ○ Only for medical interop / fuzzy recall / huge graphs — overkill solo |
+
+**Non-negotiables — what makes it a *decision* tool, not a gimmick:**
+- **Confidence + provenance on every insight.** Your data is n-of-1 and confounded; the brief must hedge weak signals ("6 nights, low confidence") so you don't optimise for noise.
+- **Experiments close the loop.** A finished N-of-1 experiment (E1) writes a *confirmed, high-confidence* fact back ("verified: bedroom < 20 °C → +12% deep sleep, n=14").
+- **Local-first.** This store is literally a model of you — the most sensitive thing in the system. It stays on your Mac; only relevant slices ever go to Claude.
+
+**Sequencing.** The knowledge *store* is a V2/V3 build, but **V1's insight step emits nodes from day one** so it accretes as you go — a one-line addition now that avoids a painful retrofit later.
+
+---
+
 ## 4. Data sources — honest reality check
 
 - **Strava** — has a clean official OAuth2 API. Straightforward adapter like WHOOP. Adds what WHOOP lacks: GPS routes, pace, power, elevation, segments, and activities you log in other apps. *(Note: overlaps WHOOP workouts — we'd reconcile, not double-count.)*
@@ -130,7 +164,7 @@ The rule: **rebuild only when the app's value is a thin sensing/UX layer over da
 | **0 — Foundation** | *Done* | Backend, canonical store, WHOOP + Mill live, export |
 | **1 — Unify & see** | One aggregated view of what you already have | Nightly **daily-summary** layer + **"Today" dashboard** (readiness score, all sources on one screen, trends). Builds on the existing air-vs-sleep report. |
 | **2 — Complete the picture** | Add the missing inputs + context | **Strava** + **Apple Health (→ Sleep Cycle)** + **daily check-in** + **weather/daylight** + **location-at-sleep**; scaffold the `biomarker` / `intake_event` / `nutrition_entry` tables |
-| **3 — Understand & coach** | The "why" and "what to change" | **Correlation engine**, **daily brief** (Claude), **weekly review**, **ask-anything Q&A**, **notifications** |
+| **3 — Understand & coach** | The "why" and "what to change" | **Correlation engine**, **daily brief** (Claude), **weekly review**, **ask-anything Q&A**, **knowledge layer** (self-model), **notifications** |
 | **4 — Optimize & close loop** | Make it act *for* you | **N-of-1 experiments**, **illness/overtraining early-warning**, goals/streaks, more sources (Oura/Garmin, **labs/blood markers**, calendar) |
 | **5 — Own the sensing layer** *(optional)* | Capture what no app exposes | A small **phone sleep-sensing app**: snore + room-noise events, **smart alarm**, **location-at-sleep** — fused with WHOOP staging; unlocks the **sleep-apnea screen** |
 
