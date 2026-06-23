@@ -33,3 +33,4 @@ on a missing ADR.
 - [0001 — Record architecture decisions](0001-record-architecture-decisions.md)
 - [0002 — AI-first guardrails on a public GitHub repo](0002-ai-first-guardrails.md)
 - [0003 — Pragmatic typing & lint baseline](0003-typing-and-lint-baseline.md)
+- [0004 — Pin claude-code-action to a known-good commit](0004-pin-claude-code-action-to-known-good-commit.md)
