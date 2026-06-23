@@ -28,7 +28,7 @@ jobs:
     # by a job-level `if:` would stay "pending" forever and silently block every PR).
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
