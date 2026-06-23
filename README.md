@@ -115,3 +115,16 @@ the metric tables in `app/sources/mill/history.py` to match.
   the full payload is kept in each row's `raw` column as a safety net.
 - Same for Mill Sense: confirm `lastMetrics` keys/units (`temperature`, `tvoc`, `eco2`, …)
   on the first real poll — the raw device payload is preserved in `raw` for re-mapping.
+
+## Development
+
+This repo is **AI-first with enforced guardrails** — see [ONBOARDING.md](ONBOARDING.md) for the
+non-technical guide and [AGENTS.md](AGENTS.md) for the rules agents follow.
+
+```bash
+make install   # set up dependencies
+make dev       # run the API locally (http://localhost:8000)
+make check     # lint + format + typecheck + test (what CI runs)
+```
+
+Every change goes through a pull request; CI, an AI reviewer, and PR-title lint must pass before merge.
