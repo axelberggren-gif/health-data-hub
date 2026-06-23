@@ -56,10 +56,12 @@ stuck and you genuinely need to merge:
 
 ## One-time setup you need to do (the parts I can't do for you)
 
-1. **Give the AI reviewer its key.** In your terminal run `claude setup-token`, copy the token it
-   prints, then run:
-   `gh secret set CLAUDE_CODE_OAUTH_TOKEN --repo axelberggren-gif/health-data-hub`
-   and paste the token when prompted. (Or I can run this for you if you paste me the token.)
+1. **Give the AI reviewer its key.** The reviewer uses a pay-per-use **Anthropic API key** (the
+   Claude Team plan can't mint a working Actions token — see ADR-0005). Create one at
+   <https://console.anthropic.com> → **API keys → Create key** (add a payment method + a small
+   monthly cap), then run:
+   `gh secret set ANTHROPIC_API_KEY --repo axelberggren-gif/health-data-hub`
+   and paste the key when prompted.
 2. **Install the Claude GitHub App** on the repo: https://github.com/apps/claude → Install → pick
    this repo. This lets the reviewer post its review.
 3. **Turn on 2FA** for your GitHub account (Settings → Password and authentication). You're the
@@ -70,9 +72,10 @@ stuck and you genuinely need to merge:
 
 ## If the AI reviewer suddenly stops working
 
-The token from `claude setup-token` expires eventually. The symptom: `claude-review` starts
-failing or never finishes, and PRs won't go green. The fix: re-run step 1 above to mint a fresh
-token and update the secret.
+The symptom: `claude-review` starts failing and PRs won't go green. Usual causes: the
+`ANTHROPIC_API_KEY` was revoked or the Anthropic API budget ran out. The fix: check
+<https://console.anthropic.com> (keys + billing), then re-set the secret with
+`gh secret set ANTHROPIC_API_KEY --repo axelberggren-gif/health-data-hub`.
 
 ## Where the rules live
 
