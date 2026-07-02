@@ -6,6 +6,8 @@ PR that makes the change.
 ## Unreleased
 
 ### Added
+- V1 technical specification (`docs/specs/TECH_SPEC_V1.md`) + test-first acceptance catalog
+  (`docs/specs/TEST_SPEC_V1.md`): milestones M0–M6 with 50 numbered test cases (ax).
 - `SUPER_APP_PLAN.md`: knowledge-layer design — a compounding self-model alongside the metrics
   (Claude-compiled, GraphRAG-retrieved, confidence + provenance), plus the V1 "emit knowledge
   nodes from day one" note and roadmap/scope updates.
