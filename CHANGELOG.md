@@ -16,3 +16,5 @@ PR that makes the change.
 
 ### Changed
 - Formatted the codebase with `ruff` and added exception chaining (`raise ... from exc`) in API routes.
+
+- Pinned `claude-code-action` to a known-good commit (reviewer auth fix).
