@@ -43,7 +43,7 @@ jobs:
         # 2026-06-22 (30544b67) regressed and rejects the OAuth token immediately
         # (is_error on turn 1). 70a6e525 (2026-06-03) is the commit working in the
         # sibling repo. Dependabot will propose bumps as reviewable PRs. See ADR-0004.
-        uses: anthropics/claude-code-action@70a6e5256e9e2366a1ed5c041904a982ba3a328f # v1 (pinned 2026-06-03)
+        uses: anthropics/claude-code-action@f1bd27ca5b54584506e40e17884d90bdaaa1a9b3 # v1 (pinned 2026-06-03)
         with:
           # Pay-per-use Anthropic API key (console.anthropic.com). Used instead of a
           # `claude setup-token` OAuth token: this account is on a Claude Team plan, whose
