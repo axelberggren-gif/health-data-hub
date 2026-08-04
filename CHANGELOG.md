@@ -6,6 +6,24 @@ PR that makes the change.
 ## Unreleased
 
 ### Added
+- V1 milestone **M1**: day attribution — the module every derived row is keyed on (ax).
+  - `app/derived/` (new package, with its own `CLAUDE.md`) and `app/derived/dates.py`: pure
+    functions answering "which local date does this row belong to?" per tech spec D1 — sleep
+    to its **wake** date, cycles/workouts to the local date of `start`, recovery to its linked
+    sleep's wake date (else `recorded_at`), plus the night window that the air-quality
+    aggregate and readiness read. Naps never count as the night's sleep, and a date with no
+    night sleep has **no** night window rather than a silent fallback to the whole day.
+  - Days are bucketed by timezone **conversion**, never by UTC truncation, so a sleep ending
+    01:30 local (23:30 UTC the previous day) lands on the right date; DST transitions are
+    covered both ways.
+  - Naive datetimes are read as UTC. SQLite hands `DateTime(timezone=True)` columns back
+    without a `tzinfo`, so a row round-tripped through the store would otherwise be
+    misinterpreted as a local wall clock.
+  - `tests/factories.py`: the shared canonical-row builders the test catalog specifies
+    (`make_sleep` / `make_recovery` / `make_cycle` / `make_workout` / `make_air_reading`),
+    reused by every later milestone. They write through `upsert()`, so the fixtures obey the
+    same idempotency invariant as production code.
+  - Tests M1-T01 … M1-T08, added red before the implementation (TEST_SPEC rule 1).
 - V1 milestone **M0**: database migrations and the auth wall the rest of V1 builds on (ADR-0008)
   (ax).
   - Alembic (`alembic/`, `alembic.ini`, `make migrate` / `make migration m="…"`): revision `0001`

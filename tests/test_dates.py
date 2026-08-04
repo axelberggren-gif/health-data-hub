@@ -74,10 +74,12 @@ def test_nightly_selector_ignores_naps(db: Session) -> None:
         end=local(2026, 6, 10, 7, 0),
         source_external_id="m1t03-night",
     )
+    # Deliberately *longer* than the night session: if naps were merely ranked below
+    # night sleeps rather than excluded, this would win and the assert would catch it.
     make_sleep(
         db,
-        start=local(2026, 6, 10, 14, 0),
-        end=local(2026, 6, 10, 15, 0),
+        start=local(2026, 6, 10, 9, 0),
+        end=local(2026, 6, 10, 20, 0),
         nap=True,
         source_external_id="m1t03-nap-same-day",
     )

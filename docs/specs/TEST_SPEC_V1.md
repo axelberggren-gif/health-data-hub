@@ -45,9 +45,23 @@
 
 ## M1 — Day attribution (`app/derived/dates.py`, pure functions)
 
-Assumed API (adjust names in the same PR if implementation differs, per rule 4):
-`sleep_wake_date(end_utc, tz) -> date`, `attribute_recovery(recovery_row, db) -> date`,
-`event_local_date(start_utc, tz) -> date`, `night_window(db, date) -> tuple[dt, dt] | None`.
+**Implemented API** (was "assumed"; amended per rule 4 when M1 landed):
+`sleep_wake_date(end_utc, tz=None) -> date`, `event_local_date(start_utc, tz=None) -> date`,
+`attribute_recovery(recovery_row, db, tz=None) -> date | None`,
+`night_sleep_for_date(db, day, tz=None) -> SleepSession | None`,
+`night_window(db, day, tz=None) -> tuple[dt, dt] | None`, plus the `local_date`,
+`as_utc` and `home_timezone` helpers.
+
+Three deviations from the originally assumed signatures, each in this PR per rule 4:
+1. `tz` is **optional everywhere** and defaults to `Settings.home_timezone`, so callers
+   in M2+ don't thread the zone through every call; tests pass it explicitly to stay
+   hermetic (a test must never depend on the owner's real `.env`).
+2. `attribute_recovery` returns `date | **None**`, not `date`: a recovery row with an
+   unresolvable `sleep_id` *and* no `recorded_at` has no defensible day, and inventing
+   one would silently misbucket a derived row. The caller skips it instead.
+3. `night_sleep_for_date` is named explicitly (M1-T03 referred to it only as "the
+   nightly-sleep selector"). When several non-nap sessions share a wake date it returns
+   the longest, tie-broken by the later `end`, so the choice is deterministic.
 
 | ID | Test case |
 |---|---|

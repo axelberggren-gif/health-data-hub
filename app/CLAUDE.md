@@ -17,7 +17,8 @@ store (`models.py`) → consumers (export, future insights)**.
 - `models.py` — the canonical schema (recovery, sleep + stages, workout, cycle, profile, body,
   air quality, vitals) + the `SourceRecord` provenance mixin.
 - `scheduler.py` — optional background Mill poller.
-- Sub-packages: `sources/`, `sync/`, `api/`, `export/` — each has its own `CLAUDE.md`.
+- Sub-packages: `sources/`, `sync/`, `api/`, `export/`, `derived/` — each has its own
+  `CLAUDE.md`.
 
 ## Conventions
 - New runtime deps go in `requirements.txt`; dev/CI tooling in `requirements-dev.txt`.
@@ -30,6 +31,10 @@ store (`models.py`) → consumers (export, future insights)**.
   migration-aware path and an ADR (see `docs/decisions/`), not ad hoc.
 
 ## Recent changes
+- V1 M1: added the `derived/` package (a *consumer* of the canonical store, not a source —
+  tech spec D2) with `dates.py`, the day-attribution rules every derived row is keyed on.
+  See `derived/CLAUDE.md`; no canonical-model or seam change, so no ADR (the derived-layer
+  ADR lands with M2's tables).
 - V1 M0: Alembic migrations are now the only way to change an existing table (`alembic/`,
   `make migrate`, revision `0001` = the current schema); `Settings` gained the V1 fields
   (`app_token`, `home_timezone`, `home_lat`/`home_lon`, `anthropic_api_key`, `llm_*`), all
