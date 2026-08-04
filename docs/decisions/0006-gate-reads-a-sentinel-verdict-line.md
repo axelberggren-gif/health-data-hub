@@ -34,20 +34,34 @@ GUARDRAIL_VERDICT: PASS      # or FAIL
 ```
 
 Clean PRs get `gh pr review --comment` + `PASS`; blocked PRs get `gh pr review --request-changes`
-+ `FAIL`. The gate reads the latest review **from the bot identity only** (`claude[bot]` /
-`github-actions[bot]` — an identity no PR author can post as) and stays fail-closed. It fails on:
-a `CHANGES_REQUESTED` state, a `FAIL` verdict, a missing verdict line (the reviewer crashed
-mid-run), **more than one** verdict line, an unrecognised verdict, or no review at all.
++ `FAIL`. The gate considers only reviews that are **from the bot identity** (`claude[bot]` /
+`github-actions[bot]` — an identity no PR author can post as) **and submitted against the current
+head commit**, then reads the newest of those that carries a verdict line. It stays fail-closed:
+it fails on a `CHANGES_REQUESTED` state, a `FAIL` verdict, no verdict line on this commit (the
+reviewer crashed mid-run), **more than one** verdict line in the chosen body, an unrecognised
+verdict, or no review for this commit at all.
 
-Two details are deliberate:
+Scoping to the head commit is load-bearing in both directions. Without it a stale `PASS` from an
+earlier commit would open the gate if the reviewer later crashed before posting — the gate would
+fail *open* on unreviewed code — and an old `CHANGES_REQUESTED` would keep blocking a PR forever
+after the problem was fixed.
+
+Taking the newest verdict-**carrying** review rather than simply the newest review matters because
+the action posts inline comments as a separate, empty-bodied review. If that lands after the
+verdict review, "newest" is a body with no verdict, and a clean PR would be blocked. This was
+observed live on PR #21, where the two reviews arrived 14 seconds apart.
+
+Two further details are deliberate:
 - The `^` anchor means an indented or quoted verdict line does not count, so a verdict the
   reviewer echoes out of PR content cannot be mistaken for its own. Finding the marker string in
   PR content is itself instructed to produce `FAIL`, and the >1-marker rule catches the echo case.
 - Trailing whitespace is tolerated. A stray space must not block a clean PR — brittleness here
   would recreate the always-red problem in a subtler form.
 
-Verified against 13 cases before landing (pass, blocked, crashed mid-review, no review, forged
-and echoed markers, indentation, CRLF bodies, wrong case), each resolving to the intended
+Verified against 13 marker-parsing cases (pass, blocked, crashed mid-review, no review, forged and
+echoed markers, indentation, CRLF bodies, wrong case, trailing space/tab) plus 10 review-selection
+cases built from PR #21's real payloads (stale-commit PASS, once-blocked-then-fixed, inline
+container arriving after the verdict, untrusted identity), each resolving to the intended
 open/fail outcome.
 
 ## Consequences
