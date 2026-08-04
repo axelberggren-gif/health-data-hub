@@ -30,9 +30,15 @@ Respect them strictly — they are not optional style preferences.
 4. Read `docs/decisions/` (the ADR log) for accepted technical decisions you must honour.
 5. Read the per-directory `CLAUDE.md` for the area you'll touch (map below).
 6. Verify git identity: `git config user.name` must be a **human name**, not "Claude". If
-   wrong, ask the human to fix it — never set it yourself.
+   wrong, ask the human to fix it — never set it yourself. **Exception — cloud sessions**
+   (Claude Code on the web): the container's git identity is a sandbox default that the
+   agent may not change and the human cannot persist. There, accountability comes from the
+   GitHub PR author (a human account) plus the `Co-authored-by` trailer — note it in the PR
+   and carry on.
 7. Read `.claude-identity` (gitignored) for the human's initials, used in branch names and
-   CHANGELOG attribution. If missing, ask the human to copy `.claude-identity.example`.
+   CHANGELOG attribution. If missing, ask the human to copy `.claude-identity.example`. In
+   cloud sessions the file is never present — it is gitignored, so it is never cloned — so
+   fall back to the initials used in recent `CHANGELOG.md` entries and say which you used.
 
 ## Per-directory CLAUDE.md map
 
