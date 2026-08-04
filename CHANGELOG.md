@@ -6,6 +6,32 @@ PR that makes the change.
 ## Unreleased
 
 ### Added
+- V1 milestones **M1 + M2**: the derived layer — the app now draws conclusions instead of only
+  storing data (ADR-0009) (ax).
+  - `app/derived/dates.py` (M1): day attribution. Every derived date is a *local* date in
+    `HOME_TIMEZONE`; sleep counts towards the day you wake up, recovery follows its sleep,
+    workouts and cycles their start, and air readings the night you slept through. Handles both
+    DST transitions.
+  - `daily_summary`: one row per local date holding recovery, the night's sleep, strain,
+    night-time bedroom air, and (from M3) weather and the daily check-in — the single shape the
+    dashboard, insights and the daily brief will read.
+  - **Readiness score**: a transparent 0.5·recovery + 0.3·sleep + 0.2·air blend that
+    renormalises when a component is missing (so the months before the air sensor existed are
+    not penalised), stores the components it used so the number can always be explained, and
+    reports nothing rather than guessing when there is no usable recovery score.
+  - `baseline`: trailing 7/30/90-day mean and spread per metric, always excluding the day being
+    judged, plus z-scores that stay silent under 14 days of history.
+  - **Anomaly flags + illness early-warning**: HRV drop, elevated resting HR, raised
+    respiratory rate, raised skin temperature, sleep debt and stale-air streaks. Two of the
+    four physiological signals on one day raise one deliberately non-diagnostic warning card.
+  - `insight_card`: one row per *finding* (not per day), so a signal that keeps firing updates
+    its card and one that resolves expires it.
+  - The job (`POST /derived/run`, behind the app token) recomputes a window of days, is a no-op
+    when run twice, and catches up on startup — a laptop that slept for three days heals
+    itself. Also a daily tick at `DERIVED_RUN_HOUR` (default 06:00 local).
+  - `sleep_session.sleep_debt_ms` is now canonical (mapped from WHOOP's `sleep_needed`), so the
+    derived layer never reads a source payload. Alembic revision `0002` ships all of the above.
+  - Tests M1-T01 … M1-T08 and M2-T01 … M2-T11 from the V1 catalog, plus `tests/factories.py`.
 - V1 milestone **M0**: database migrations and the auth wall the rest of V1 builds on (ADR-0008)
   (ax).
   - Alembic (`alembic/`, `alembic.ini`, `make migrate` / `make migration m="…"`): revision `0001`

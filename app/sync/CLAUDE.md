@@ -24,4 +24,8 @@ The shared write path every source uses, so re-running a sync never duplicates d
 - See `tests/test_orchestrator_idempotency.py` — that test guards this invariant; keep it green.
 
 ## Recent changes
+- V1 M2: `upsert()` is now also the write path for the *derived* tables (`source="derived"`,
+  deterministic `source_external_id`) — see ADR-0009. Note for callers: `SessionLocal` runs
+  with autoflush off, so a step whose output another step reads back in the same transaction
+  must `db.flush()`.
 - Documented the persistence invariant + added the idempotency test (initial setup).

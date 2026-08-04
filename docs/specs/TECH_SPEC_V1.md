@@ -65,12 +65,14 @@ local Mac**, **LLM = Claude API behind a model-agnostic seam**.
 ### New packages this spec adds
 
 ```
-app/derived/            # rollups, baselines, readiness, anomalies (M2)
-  jobs.py               # run_daily_derivation(db, days_back) — the nightly job
+app/derived/            # day attribution, rollups, baselines, readiness, flags (M1, M2)
+  dates.py              # D1 day attribution (M1)
+  jobs.py               # run_daily_derivation(db, days_back, today=None) — the daily job
   rollup.py             # canonical rows -> DailySummary values
   baselines.py          # 7/30/90-day baselines + z-scores
   readiness.py          # readiness score v1
-  anomalies.py          # anomaly + illness-warning rules
+  flags.py              # anomaly + illness-warning rules (sketched as anomalies.py; named
+                        # flags.py to match daily_summary.flags, which it writes)
 app/insights/           # statistics + LLM (M4, M5)
   correlations.py       # C2
   training_load.py      # C6
@@ -122,8 +124,8 @@ They do not implement `HealthDataSource` (nothing external to sync). Their write
 `upsert()` with `source="derived"` and a deterministic `source_external_id` (e.g. the ISO
 date), so recomputation is idempotent by construction and the existing invariant #2 holds
 everywhere. This is a new architectural layer → **add an ADR** describing it in the M2 PR.
-(This spec originally said "ADR 0006"; 0006–0008 were taken before M2 started — use the next
-free number.)
+(This spec originally said "ADR 0006"; 0006–0008 were taken before M2 started. It landed as
+**ADR-0009**.)
 
 ### D3 — Manual input *is* a source
 
@@ -185,6 +187,11 @@ Ship in the milestone noted; every table lands with an Alembic revision (D4).
 | `date` | Date, unique, index | local date (D1) |
 | `recovery_score`, `hrv_rmssd_ms`, `resting_hr_bpm`, `spo2_pct`, `skin_temp_c` | Float? | from that date's recovery |
 | `sleep_performance_pct`, `sleep_efficiency_pct`, `sleep_duration_ms`, `sleep_debt_ms`, `rem_ms`, `slow_wave_ms`, `respiratory_rate`, `disturbance_count` | Float?/Int? | from the night's main sleep |
+
+`sleep_duration_ms` is time *asleep* (light + slow-wave + REM), not time in bed. `sleep_debt_ms`
+required a canonical addition in M2 — `sleep_session.sleep_debt_ms`, mapped from WHOOP's
+`score.sleep_needed.need_from_sleep_debt_milli` — because reading it out of `raw` here would
+leak a source payload shape into the derived layer (global invariant #3).
 | `day_strain`, `workout_count`, `workout_strain_sum`, `kilojoule` | Float?/Int? | from cycle + workouts |
 | `night_temp_c_avg`, `night_eco2_ppm_avg`, `night_eco2_ppm_max`, `night_tvoc_ppb_avg`, `night_humidity_pct_avg` | Float? | night-window air (D1.5a) |
 | `weather_temp_min_c`, `weather_temp_max_c`, `daylight_seconds`, `sunrise`, `sunset` | Float?/Int?/DateTime? | from weather source |
@@ -216,7 +223,11 @@ use trailing complete days.
 `sunrise`, `sunset`, `daylight_seconds`, `pollen_index` (Float?, null — Open-Meteo pollen
 is regional; fill if available).
 
-### `insight_card` (M4) — `SourceRecord` mixin, source `"derived"`
+### `insight_card` (**landed in M2**, was planned for M4) — `SourceRecord` mixin, source `"derived"`
+
+Moved earlier because §8 — an M2 deliverable — has to write the illness-warning card. M2 fills
+`kind` / `title` / `body` / `metric_x` / `first_seen` / `last_confirmed` / `status`; the
+statistics fields below are M4's.
 
 `kind` (String: `correlation|illness_warning|training_load|anomaly`), `title` (String),
 `body` (String), `metric_x`/`metric_y` (String?), `effect_size` (Float?), `n` (Int?),
@@ -234,20 +245,27 @@ the point is that adding labs/food later is an adapter + a form, not a migration
 
 ## 5. Derivation job (M2)
 
-`app/derived/jobs.py::run_daily_derivation(db, days_back: int = 7)`:
+`app/derived/jobs.py::run_daily_derivation(db, days_back: int = 7, *, today: date | None = None)`:
 
 1. For each of the last `days_back` local dates (oldest first): recompute the full
-   `daily_summary` row from canonical tables and upsert it (D2).
+   `daily_summary` row from canonical tables and upsert it (D2). A date with **no** upstream
+   data is skipped rather than written as a row of nulls, so "the strap was charging" and
+   "everything measured zero" stay distinguishable.
 2. Recompute all `baseline` rows (7/30/90 windows) from `daily_summary`.
-3. Re-evaluate anomaly + illness rules (§8) for the most recent date; update `flags` and
+3. Re-evaluate anomaly + illness rules (§8) for the **newest date that has data** — not
+   necessarily the calendar today, which may still be empty at 06:00 — and update `flags` and
    `insight_card` rows.
 4. Commit once at the end; return a `SyncResult`-like report (counts per step).
 
+`today` pins the last date of the window (default: the local today) so a historical window can
+be backfilled deliberately.
+
 **Scheduling & catch-up:** hosting is a laptop that sleeps, so the job must never assume it
 ran yesterday. It is (a) exposed as `POST /derived/run?days_back=N`, (b) registered in the
-existing scheduler (`app/scheduler.py`) to run daily at 06:00 local *and* once on app
-startup if the newest `daily_summary` is stale (> 24 h old), always with `days_back=7` so
-missed days self-heal. Late-arriving source data (a WHOOP sync at noon) is picked up the
+existing scheduler (`app/scheduler.py`) to run daily at `DERIVED_RUN_HOUR` local (default 06)
+*and* once on app startup if the newest `daily_summary` is stale (> 24 h old), with the window
+widened to cover the whole gap so missed days self-heal. `DERIVED_SCHEDULE_ENABLED=false`
+switches the tick off. Late-arriving source data (a WHOOP sync at noon) is picked up the
 next run; `POST /derived/run` lets the UI offer a manual "refresh" button.
 
 **Determinism:** rollup functions are pure (`rows -> values`), unit-testable with golden
@@ -279,8 +297,11 @@ number. Tuning the formula later = editing `readiness.py` + its golden tests; ch
 
 - Baselines: trailing 7/30/90-day mean + SD per metric (metrics: hrv, rhr, recovery,
   sleep duration, sleep performance, respiratory rate, skin temp, spo2, strain, readiness,
-  night eCO₂/temp).
-- A metric's **z-score for today** = (today − 30d mean) / 30d SD (require n ≥ 14, SD > 0).
+  night eCO₂/temp), always **excluding the day being judged**. The SD is a *population* SD: a
+  window is the complete set of days it covers, not a sample from a larger pool, and it keeps
+  the §8 thresholds exact rather than estimator-dependent.
+- A metric's **z-score for today** = (today − 30d mean) / 30d SD (require n ≥ 14, SD > 0), and
+  §8 compares it rounded to 3 decimals so a value on the threshold fires deterministically.
 - The trends view (B3) charts metric + 7d rolling mean + 30d band (±1 SD), over a
   selectable 30/90/180-day range.
 

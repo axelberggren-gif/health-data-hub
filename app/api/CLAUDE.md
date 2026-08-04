@@ -12,6 +12,8 @@ The HTTP surface: OAuth connect flow, sync triggers, export, health check, Mill 
 - `routes_sync.py` — `/sync/{source}/backfill` + `/sync/{source}/incremental`; resolves the
   source via the registry.
 - `routes_export.py` — JSON/CSV export over the canonical store.
+- `routes_derived.py` — `POST /derived/run?days_back=N`: recompute daily summaries, baselines
+  and flags, returning per-step counts. The manual "refresh" companion to the scheduler tick.
 - `routes_health.py` — `GET /health` → `{"status": "ok"}`.
 - `routes_mill.py` — Mill diagnostics.
 
@@ -28,6 +30,8 @@ The HTTP surface: OAuth connect flow, sync triggers, export, health check, Mill 
   before any multi-process or production deployment.
 
 ## Recent changes
+- V1 M2: added `routes_derived.py` (`POST /derived/run`), mounted behind `require_token` and
+  added to `PROTECTED_ROUTES` in `tests/test_auth.py` rather than tested separately.
 - V1 M0: added `deps.py` with `require_token` — the shared-token auth wall (ADR-0008). It is
   mounted on the whole `/export` router; `/dashboard`, `/log` and `/insights` must mount the
   same dependency as they land. Empty `Settings.app_token` disables it (local-dev default);

@@ -39,6 +39,7 @@ Respect them strictly — they are not optional style preferences.
 @app/CLAUDE.md
 @app/sources/CLAUDE.md
 @app/sync/CLAUDE.md
+@app/derived/CLAUDE.md
 @app/api/CLAUDE.md
 @app/export/CLAUDE.md
 @tests/CLAUDE.md
