@@ -81,12 +81,18 @@ Every commit you author ends with the trailer:
 ### Pull requests (the only path to `main`)
 1. Push your branch; open a PR against `main`; fill in the template.
 2. Update `CHANGELOG.md` (newest first) in the same PR.
-3. If you touched a directory with a `CLAUDE.md`, update its "Recent changes" list.
+3. If you touched a directory with a `CLAUDE.md`, update its "Recent changes" list. This is
+   the one edit to a `CLAUDE.md` the reviewer does **not** block — see the carve-out in its
+   guardrail-tampering rule. Changing any *other* section of a `CLAUDE.md` (Purpose, Key
+   files, Conventions, Invariants) still needs the owner's manual review, because those are
+   the rules themselves.
 4. If you changed an **architectural seam** (`app/sources/base.py`, `app/models.py`,
    `app/sync/orchestrator.py`), add an ADR in `docs/decisions/` (see its README).
-5. Three checks must pass: **`ci`** (lint/format/type/test), **`claude-review`** (the AI gate),
-   **`pr-title-lint`**. Then **Axel presses Merge** — the bot reviews and can block, but a human
-   is always the final gate. Squash-merge only.
+5. Three checks must pass. The names on the PR page are the **job** names, not the workflow
+   names: **`build`** (the `ci` workflow — lint/format/type/test), **`review`** (the
+   `claude-review` workflow — the AI gate), **`lint`** (the `pr-title-lint` workflow). Those
+   three job names are what branch protection requires. Then **Axel presses Merge** — the bot
+   reviews and can block, but a human is always the final gate. Squash-merge only.
 
 ### Task tracking
 GitHub Issues + a Project board. File via the issue forms in `.github/ISSUE_TEMPLATE/`. Reference
