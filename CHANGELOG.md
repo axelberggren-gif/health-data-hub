@@ -6,6 +6,20 @@ PR that makes the change.
 ## Unreleased
 
 ### Added
+- V1 milestone **M0**: database migrations and the auth wall the rest of V1 builds on (ADR-0008)
+  (ax).
+  - Alembic (`alembic/`, `alembic.ini`, `make migrate` / `make migration m="…"`): revision `0001`
+    is the current schema, so the owner's existing database upgrades in place instead of being
+    rebuilt. CI replays `alembic upgrade head` on a scratch database, and a test asserts the
+    migrated schema equals `Base.metadata` — a model change that forgets its migration turns
+    `build` red.
+  - `Settings.app_token` + `require_token` (`app/api/deps.py`): a shared bearer/cookie token,
+    mounted on the `/export` router. Empty token = disabled, which stays the local-dev default;
+    `/health` and `/` remain public.
+  - The remaining V1 settings with safe defaults: `home_timezone`, `home_lat`/`home_lon`
+    (0.0 ⇒ weather off), `anthropic_api_key` (empty ⇒ LLM routes off), `llm_provider`,
+    `llm_model`, `llm_daily_token_cap`; `.env.example` documents all of them.
+  - Tests M0-T01 … M0-T05 from the V1 catalog.
 - V1 technical specification (`docs/specs/TECH_SPEC_V1.md`) + test-first acceptance catalog
   (`docs/specs/TEST_SPEC_V1.md`): milestones M0–M6 with 50 numbered test cases (ax).
 - `SUPER_APP_PLAN.md`: knowledge-layer design — a compounding self-model alongside the metrics

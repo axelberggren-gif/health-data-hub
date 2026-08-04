@@ -14,6 +14,28 @@ class Settings(BaseSettings):
     # Canonical store. SQLite by default; point at Postgres in production.
     database_url: str = "sqlite:///./health.db"
 
+    # --- App auth (tech spec D6) ---
+    # One shared bearer token guards the data routes (/export, and the /dashboard,
+    # /log, /insights routes as they land). Empty => auth disabled, which is the
+    # local-dev default; set it before the app is reachable from anywhere but
+    # localhost. The PWA stores it in an `app_token` cookie.
+    app_token: str = ""
+
+    # --- Home location (tech spec D1 / D7) ---
+    # `home_timezone` defines the local calendar every derived `date` key uses.
+    # The coordinates feed the weather source; 0.0/0.0 => weather stays disabled
+    # (an unset location is "off", never a guess).
+    home_timezone: str = "Europe/Stockholm"
+    home_lat: float = 0.0
+    home_lon: float = 0.0
+
+    # --- LLM seam (tech spec §10) ---
+    # Empty API key => the LLM-backed routes answer 503; everything else works.
+    anthropic_api_key: str = ""
+    llm_provider: str = "claude"
+    llm_model: str = "claude-haiku-4-5-20251001"
+    llm_daily_token_cap: int = 50_000
+
     # --- WHOOP OAuth2 / v2 API ---
     whoop_client_id: str = ""
     whoop_client_secret: str = ""

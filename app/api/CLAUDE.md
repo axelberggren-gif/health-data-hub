@@ -28,4 +28,8 @@ The HTTP surface: OAuth connect flow, sync triggers, export, health check, Mill 
   before any multi-process or production deployment.
 
 ## Recent changes
+- V1 M0: added `deps.py` with `require_token` — the shared-token auth wall (ADR-0008). It is
+  mounted on the whole `/export` router; `/dashboard`, `/log` and `/insights` must mount the
+  same dependency as they land. Empty `Settings.app_token` disables it (local-dev default);
+  `/health` and `/` stay public.
 - Added exception chaining (`raise ... from exc`) for clearer errors (initial setup).

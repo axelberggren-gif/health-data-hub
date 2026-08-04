@@ -121,7 +121,9 @@ Daily rollups need an unambiguous day key. Rules:
 They do not implement `HealthDataSource` (nothing external to sync). Their writes reuse
 `upsert()` with `source="derived"` and a deterministic `source_external_id` (e.g. the ISO
 date), so recomputation is idempotent by construction and the existing invariant #2 holds
-everywhere. This is a new architectural layer → **add ADR 0006** describing it in the M2 PR.
+everywhere. This is a new architectural layer → **add an ADR** describing it in the M2 PR.
+(This spec originally said "ADR 0006"; 0006–0008 were taken before M2 started — use the next
+free number.)
 
 ### D3 — Manual input *is* a source
 
@@ -404,7 +406,7 @@ previous.
 |---|---|---|---|
 | **M0** | Alembic + config + auth stub | M0-T01 … M0-T05 | `alembic upgrade head` recreates the current schema on a fresh DB; CI proves it. New `Settings` fields (home_timezone, home_lat/lon, app_token, anthropic_api_key, llm_*) with safe defaults + `.env.example` updated. Auth dependency exists (no routes newly broken when token unset). ADR if any seam interpretation was needed. |
 | **M1** | Day-attribution module (D1) | M1-T01 … M1-T08 | `app/derived/dates.py` pure functions mapping each canonical row type → local date / night window; `tests/factories.py` fixture builders land here. |
-| **M2** | Derived layer + job (§5–§8) | M2-T01 … M2-T11 | `daily_summary` + `baseline` tables via migration; derivation idempotent; readiness renormalizes on missing components; flags fire at exact thresholds; scheduler + startup catch-up wired; ADR 0006 (derived layer) added. |
+| **M2** | Derived layer + job (§5–§8) | M2-T01 … M2-T11 | `daily_summary` + `baseline` tables via migration; derivation idempotent; readiness renormalizes on missing components; flags fire at exact thresholds; scheduler + startup catch-up wired; the derived-layer ADR (D2) added. |
 | **M3** | Manual + weather sources; reserved tables | M3-T01 … M3-T09 | `manual` + `open_meteo` registered in the registry; check-in/intake upsert by key; weather backfills 6 months and syncs incrementally with a cursor; `biomarker`/`intake_event`/`nutrition_entry` exist; no real network in tests. |
 | **M4** | Statistics insights (C2, C6) | M4-T01 … M4-T06 | Correlation engine finds planted correlations and publishes nothing on null data; FDR unit-tested; card lifecycle deterministic; training-load card on the Today payload. |
 | **M5** | LLM seam + brief + ask (C1, C3) | M5-T01 … M5-T06 | Provider seam + Claude impl; app fully functional with no API key (503 on LLM routes only); privacy whitelist enforced (M5-T02 is a release blocker); brief cached per date; token cap enforced. |

@@ -23,6 +23,12 @@ ignore = [
   "B008",  # FastAPI uses `Depends()` in defaults by design
 ]
 
+[tool.ruff.lint.isort]
+# `alembic` is the installed migration library. Without this, the repo's own `alembic/`
+# directory (migration scripts, not an importable package) makes ruff guess "first-party"
+# and split `from alembic import op` away from `from alembic.config import Config`.
+known-third-party = ["alembic"]
+
 [tool.ruff.lint.per-file-ignores]
 # Tests may use assert and slightly looser patterns.
 "tests/*" = ["B011"]

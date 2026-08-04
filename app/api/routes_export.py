@@ -10,8 +10,11 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..export import exporter
+from .deps import require_token
 
-router = APIRouter(prefix="/export", tags=["export"])
+# Exports are the whole canonical store in one response — the auth wall (D6) applies to
+# the entire router, not to individual endpoints.
+router = APIRouter(prefix="/export", tags=["export"], dependencies=[Depends(require_token)])
 
 
 @router.get("/json")
