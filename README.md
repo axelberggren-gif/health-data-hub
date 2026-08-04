@@ -123,8 +123,12 @@ non-technical guide and [AGENTS.md](AGENTS.md) for the rules agents follow.
 
 ```bash
 make install   # set up dependencies
+make migrate   # bring the database schema up to date (Alembic)
 make dev       # run the API locally (http://localhost:8000)
 make check     # lint + format + typecheck + test (what CI runs)
 ```
+
+Schema changes ship as Alembic revisions (`make migration m="add x"`) so an existing database
+is upgraded in place rather than rebuilt — see [ADR-0008](docs/decisions/0008-alembic-migrations-and-app-token-auth.md).
 
 Every change goes through a pull request; CI, an AI reviewer, and PR-title lint must pass before merge.

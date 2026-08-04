@@ -9,7 +9,7 @@
 # interpreter guarantees we use the pinned version in the active environment.
 PY ?= python
 
-.PHONY: help install lint format typecheck test check audit dev
+.PHONY: help install lint format typecheck test check audit dev migrate migration
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -36,6 +36,13 @@ check: ## The full verify loop CI runs: lint + format-check + typecheck + test
 	$(PY) -m ruff format --check .
 	$(PY) -m mypy app
 	$(PY) -m pytest
+
+migrate: ## Apply pending database migrations (alembic upgrade head)
+	$(PY) -m alembic upgrade head
+
+migration: ## Autogenerate a migration from model changes: make migration m="add x"
+	@test -n "$(m)" || (echo 'usage: make migration m="short description"'; exit 1)
+	$(PY) -m alembic revision --autogenerate -m "$(m)"
 
 audit: ## Scan dependencies for known vulnerabilities
 	$(PY) -m pip_audit -r requirements.txt

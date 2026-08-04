@@ -35,3 +35,6 @@ on a missing ADR.
 - [0003 — Pragmatic typing & lint baseline](0003-typing-and-lint-baseline.md)
 - [0004 — Pin claude-code-action to a known-good commit](0004-pin-claude-code-action-to-known-good-commit.md)
 - [0005 — AI reviewer uses an Anthropic API key](0005-reviewer-uses-anthropic-api-key.md)
+- [0006 — The gate reads a sentinel verdict line](0006-gate-reads-a-sentinel-verdict-line.md)
+- [0007 — Reviewer carve-outs: CLAUDE.md and Dependabot](0007-reviewer-carve-outs-claude-md-and-dependabot.md)
+- [0008 — Alembic migrations and a single app token for the data routes](0008-alembic-migrations-and-app-token-auth.md)

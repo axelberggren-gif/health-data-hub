@@ -30,4 +30,8 @@ store (`models.py`) → consumers (export, future insights)**.
   migration-aware path and an ADR (see `docs/decisions/`), not ad hoc.
 
 ## Recent changes
+- V1 M0: Alembic migrations are now the only way to change an existing table (`alembic/`,
+  `make migrate`, revision `0001` = the current schema); `Settings` gained the V1 fields
+  (`app_token`, `home_timezone`, `home_lat`/`home_lon`, `anthropic_api_key`, `llm_*`), all
+  defaulting to safe/off. See ADR-0008.
 - Added AI-first CI/guardrail pipeline + tests scaffold (initial setup).

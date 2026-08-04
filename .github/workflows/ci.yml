@@ -45,3 +45,10 @@ jobs:
 
       - name: Tests (pytest)
         run: pytest
+
+      # Proves the migration history replays from empty on a throwaway database —
+      # `pytest` checks it matches the models, this checks it runs from the CLI too.
+      - name: Migrations replay (alembic)
+        env:
+          DATABASE_URL: sqlite+pysqlite:///./ci-migration-check.db
+        run: alembic upgrade head
