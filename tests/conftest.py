@@ -15,6 +15,12 @@ _TEST_DB = Path(tempfile.gettempdir()) / "health_hub_test.db"
 _TEST_DB.unlink(missing_ok=True)
 os.environ["DATABASE_URL"] = f"sqlite+pysqlite:///{_TEST_DB}"
 
+# Keep the suite deterministic: the derivation scheduler would otherwise run a catch-up
+# derivation every time a test boots the app through the `client` fixture, writing rows for
+# the real "today" underneath tests that assert on derived rows. The scheduler's own
+# behaviour is tested by calling its functions directly (M2-T10).
+os.environ["DERIVED_SCHEDULE_ENABLED"] = "false"
+
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import text  # noqa: E402
@@ -62,6 +68,9 @@ _DAY_SCOPED_TABLES = (
     "cycle_day",
     "workout",
     "air_quality_reading",
+    "daily_summary",
+    "baseline",
+    "insight_card",
 )
 
 

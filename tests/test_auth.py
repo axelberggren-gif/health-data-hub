@@ -22,6 +22,7 @@ TOKEN = "test-token-123"
 # (method, path) of one representative route per protected router prefix.
 PROTECTED_ROUTES = [
     ("GET", "/export/json"),
+    ("POST", "/derived/run"),
 ]
 
 

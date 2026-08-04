@@ -17,14 +17,22 @@ shared temp database.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from itertools import count
 from typing import Any
 from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
-from app.models import AirQualityReading, CycleDay, RecoveryDaily, SleepSession, Workout
+from app.derived import DERIVED_SOURCE
+from app.models import (
+    AirQualityReading,
+    CycleDay,
+    DailySummary,
+    RecoveryDaily,
+    SleepSession,
+    Workout,
+)
 
 #: Matches `Settings.home_timezone`'s default — the local calendar the derived layer uses.
 HOME_TZ = ZoneInfo("Europe/Stockholm")
@@ -72,6 +80,7 @@ def make_sleep(
     efficiency: float | None = 90.0,
     respiratory_rate: float | None = 14.5,
     disturbances: int | None = 3,
+    debt_ms: int | None = 0,
     source: str = "whoop_api",
     external_id: str | None = None,
 ) -> SleepSession:
@@ -109,6 +118,7 @@ def make_sleep(
             sleep_efficiency_pct=efficiency,
             respiratory_rate=respiratory_rate,
             disturbance_count=disturbances,
+            sleep_debt_ms=debt_ms,
             total_in_bed_ms=in_bed_ms,
             total_awake_ms=awake_ms,
             total_light_ms=light_ms,
@@ -230,6 +240,18 @@ def make_air_reading(
             humidity_pct=humidity,
             tvoc_ppb=tvoc,
         ),
+    )
+
+
+def make_summary(db: Session, *, day: date, **values: Any) -> DailySummary:
+    """A `daily_summary` row written directly, for baseline / flag / statistics tests.
+
+    Deliberately bypasses the derivation job: those tests need long synthetic histories
+    with *known* values, not fixtures for every upstream table on every one of 90 days.
+    """
+    return _add(
+        db,
+        DailySummary(source=DERIVED_SOURCE, source_external_id=day.isoformat(), date=day, **values),
     )
 
 
