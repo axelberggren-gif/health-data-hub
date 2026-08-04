@@ -271,7 +271,11 @@ class VitalsTimeseries(Base):
 
 
 # Tables exposed by the export consumer (excludes connection/cursor bookkeeping).
-EXPORT_MODELS = [
+# Annotated explicitly: the entries have different base combinations (some mix in
+# SourceRecord, some don't), so an inferred element type can collapse to `type[object]` —
+# which makes the `__tablename__` / `__table__` access in app/export/exporter.py fail to
+# type-check. Naming `type[Base]` keeps the mapped-class attributes visible.
+EXPORT_MODELS: list[type[Base]] = [
     RecoveryDaily,
     SleepSession,
     SleepStage,

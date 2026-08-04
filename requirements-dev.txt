@@ -1,8 +1,16 @@
 # Dev + CI tooling. Install with: pip install -r requirements.txt -r requirements-dev.txt
 # (or `make install`). Runtime deps stay in requirements.txt.
+#
+# The three tools whose VERDICT decides whether `make check` (and therefore CI) passes are
+# pinned exactly. With a floating range, a new upstream release can turn CI red on an
+# unrelated PR — a formatter changes its style, or a type checker changes its inference —
+# which is impossible for a non-technical owner to diagnose. Pinned, a version change
+# arrives as a reviewable Dependabot PR instead of a surprise.
+ruff==0.16.1        # linter + formatter (the `make lint` / `make format` engine)
+mypy==2.3.0         # static type checker (`make typecheck`)
+pytest==9.1.1       # test runner (`make test`)
 
-ruff>=0.6           # linter + formatter (the `make lint` / `make format` engine)
-mypy>=1.11          # static type checker (`make typecheck`)
-pytest>=8.0         # test runner (`make test`)
+# Not pinned: these don't decide pass/fail. httpx is also a runtime dep (requirements.txt),
+# and pip-audit *should* float so `make audit` always has the freshest advisory database.
 httpx>=0.27         # also used by Starlette's TestClient in tests
 pip-audit>=2.7      # dependency vulnerability scan (`make audit`)

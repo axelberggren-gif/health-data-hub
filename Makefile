@@ -1,6 +1,13 @@
 # Health Data Hub — developer commands.
 # These are the Python equivalents of `npm run <script>`. CI runs the same ones,
 # so "green locally" == "green in CI". Run `make check` before opening a PR.
+#
+# Every tool runs as `$(PY) -m <tool>`, NOT as a bare `ruff` / `mypy` / `pytest` on PATH.
+# A bare name can resolve to some globally installed copy at a different version than the
+# one pinned in requirements-dev.txt, which silently breaks the "green locally == green in
+# CI" promise (the same code can pass one version and fail another). Going through the
+# interpreter guarantees we use the pinned version in the active environment.
+PY ?= python
 
 .PHONY: help install lint format typecheck test check audit dev
 
@@ -9,29 +16,29 @@ help: ## Show this help
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
 
 install: ## Install runtime + dev dependencies into the active environment
-	python -m pip install --upgrade pip
-	pip install -r requirements.txt -r requirements-dev.txt
+	$(PY) -m pip install --upgrade pip
+	$(PY) -m pip install -r requirements.txt -r requirements-dev.txt
 
 lint: ## Lint with ruff (style, imports, common bugs)
-	ruff check .
+	$(PY) -m ruff check .
 
 format: ## Auto-format with ruff
-	ruff format .
+	$(PY) -m ruff format .
 
 typecheck: ## Static type check with mypy
-	mypy app
+	$(PY) -m mypy app
 
 test: ## Run the test suite
-	pytest
+	$(PY) -m pytest
 
 check: ## The full verify loop CI runs: lint + format-check + typecheck + test
-	ruff check .
-	ruff format --check .
-	mypy app
-	pytest
+	$(PY) -m ruff check .
+	$(PY) -m ruff format --check .
+	$(PY) -m mypy app
+	$(PY) -m pytest
 
 audit: ## Scan dependencies for known vulnerabilities
-	pip-audit -r requirements.txt
+	$(PY) -m pip_audit -r requirements.txt
 
 dev: ## Run the API locally with auto-reload (http://localhost:8000)
-	uvicorn app.main:app --reload
+	$(PY) -m uvicorn app.main:app --reload
