@@ -34,6 +34,33 @@ from .readiness import air_score, compute_readiness
 #: any timezone offset and lets the attribution rule make the actual decision.
 _ATTRIBUTION_SLACK = timedelta(hours=36)
 
+#: The `daily_summary` columns each group owns. Naming them keeps "a day with no recovery" and
+#: "a day whose recovery was never recomputed" from looking the same in the database.
+RECOVERY_COLUMNS = (
+    "recovery_score",
+    "hrv_rmssd_ms",
+    "resting_hr_bpm",
+    "spo2_pct",
+    "skin_temp_c",
+)
+SLEEP_COLUMNS = (
+    "sleep_performance_pct",
+    "sleep_efficiency_pct",
+    "sleep_duration_ms",
+    "sleep_debt_ms",
+    "rem_ms",
+    "slow_wave_ms",
+    "respiratory_rate",
+    "disturbance_count",
+)
+AIR_COLUMNS = (
+    "night_temp_c_avg",
+    "night_eco2_ppm_avg",
+    "night_eco2_ppm_max",
+    "night_tvoc_ppb_avg",
+    "night_humidity_pct_avg",
+)
+
 
 def _mean(values: list[float]) -> float | None:
     return sum(values) / len(values) if values else None
@@ -44,9 +71,14 @@ def _present(values: list[float | None]) -> list[float]:
 
 
 def recovery_values(recovery: RecoveryDaily | None) -> dict[str, Any]:
-    """The recovery columns of a daily summary."""
+    """The recovery columns of a daily summary.
+
+    Every column is always returned, `None` when there is no recovery, so that a recomputed
+    row is a pure function of its inputs. Omitting keys instead would leave `upsert()`
+    carrying yesterday's values forward if a record is later corrected onto another day.
+    """
     if recovery is None:
-        return {}
+        return dict.fromkeys(RECOVERY_COLUMNS)
     return {
         "recovery_score": recovery.recovery_score,
         "hrv_rmssd_ms": recovery.hrv_rmssd_ms,
@@ -62,9 +94,11 @@ def sleep_values(sleep: SleepSession | None) -> dict[str, Any]:
     `sleep_duration_ms` is time *asleep* (light + slow-wave + REM) when the stage totals are
     present, falling back to time in bed minus awake and no-data time. Both readings of "how
     much did I sleep" exclude lying awake, which is the number worth trending.
+
+    Always returns every column (see `recovery_values`).
     """
     if sleep is None:
-        return {}
+        return dict.fromkeys(SLEEP_COLUMNS)
 
     stages = _present([sleep.total_light_ms, sleep.total_slow_wave_ms, sleep.total_rem_ms])
     if stages:
@@ -100,9 +134,12 @@ def strain_values(cycle: CycleDay | None, workouts: list[Workout]) -> dict[str, 
 
 
 def air_values(readings: list[AirQualityReading]) -> dict[str, Any]:
-    """Night-window air aggregates (D1.5a) — averages, plus the peak CO2 of the night."""
+    """Night-window air aggregates (D1.5a) — averages, plus the peak CO2 of the night.
+
+    Always returns every column (see `recovery_values`).
+    """
     if not readings:
-        return {}
+        return dict.fromkeys(AIR_COLUMNS)
     eco2 = _present([r.eco2_ppm for r in readings])
     return {
         "night_temp_c_avg": _mean(_present([r.temp_c for r in readings])),

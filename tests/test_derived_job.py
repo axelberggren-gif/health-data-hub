@@ -13,6 +13,14 @@ from datetime import date, timedelta
 from app.derived import DERIVED_SOURCE
 from app.derived.dates import home_tz
 from app.derived.jobs import catch_up_if_stale, newest_summary_date, run_daily_derivation
+from app.derived.rollup import (
+    AIR_COLUMNS,
+    RECOVERY_COLUMNS,
+    SLEEP_COLUMNS,
+    air_values,
+    recovery_values,
+    sleep_values,
+)
 from app.models import Baseline, DailySummary, InsightCard
 from tests.factories import (
     local,
@@ -154,6 +162,40 @@ def test_derived_rows_carry_derived_provenance(clean_db) -> None:
     for card in clean_db.query(InsightCard).all():
         assert card.source == DERIVED_SOURCE
         assert card.source_external_id
+
+
+def test_recomputing_clears_values_whose_source_data_moved(clean_db) -> None:
+    """A summary is a pure function of its inputs — a stale column would be a lie.
+
+    Guards the upsert trap: if the rollup omitted absent columns instead of writing `None`,
+    re-deriving a day whose sleep was re-attributed elsewhere would keep the old numbers.
+    """
+    sleep = make_sleep(
+        clean_db, start=local(2026, 6, 9, 23, 0), end=local(2026, 6, 10, 6, 0), performance=80.0
+    )
+    make_cycle(clean_db, start=local(2026, 6, 10, 6, 0), strain=12.4)
+    run_daily_derivation(clean_db, days_back=1, today=GOLDEN_DAY)
+    clean_db.expire_all()
+    assert clean_db.query(DailySummary).one().sleep_performance_pct == 80.0
+
+    # WHOOP re-classifies the session as a nap, so it is no longer that night's sleep.
+    sleep.nap = True
+    clean_db.commit()
+
+    run_daily_derivation(clean_db, days_back=1, today=GOLDEN_DAY)
+    clean_db.expire_all()
+
+    row = clean_db.query(DailySummary).one()
+    assert row.sleep_performance_pct is None
+    assert row.sleep_duration_ms is None
+    assert row.day_strain == 12.4  # the cycle is untouched
+
+
+def test_rollup_groups_always_return_their_whole_column_set() -> None:
+    """The "absent" and "present" branches must agree on the columns they own."""
+    empty = {**recovery_values(None), **sleep_values(None), **air_values([])}
+    assert set(empty) == set(RECOVERY_COLUMNS) | set(SLEEP_COLUMNS) | set(AIR_COLUMNS)
+    assert all(value is None for value in empty.values())
 
 
 def test_catch_up_fills_the_gap_after_a_stale_period(clean_db) -> None:
