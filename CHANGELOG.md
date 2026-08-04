@@ -20,6 +20,12 @@ PR that makes the change.
 - Project tooling: `pyproject.toml` (ruff/mypy/pytest config), `Makefile`, `requirements-dev.txt`.
 
 ### Changed
+- Made the verify loop reproducible: pinned `ruff` / `mypy` / `pytest` exactly in
+  `requirements-dev.txt`, and `make` now invokes tools via `python -m` so the active
+  environment's pinned version runs instead of whatever is on `PATH` (ax).
+- `EXPORT_MODELS` (`app/models.py`) is annotated `list[type[Base]]` so export's
+  `__tablename__` / `__table__` access type-checks under any mypy version (ax).
+
 - Formatted the codebase with `ruff` and added exception chaining (`raise ... from exc`) in API routes.
 
 - Pinned `claude-code-action` to a known-good commit (reviewer auth fix).
