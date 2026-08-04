@@ -65,9 +65,7 @@ def day_bounds(day: date, tz: ZoneInfo | None = None) -> tuple[datetime, datetim
     return start.astimezone(UTC), end.astimezone(UTC)
 
 
-def night_sleep_for_date(
-    db: Session, day: date, tz: ZoneInfo | None = None
-) -> SleepSession | None:
+def night_sleep_for_date(db: Session, day: date, tz: ZoneInfo | None = None) -> SleepSession | None:
     """The night's main sleep for a local date, or `None`.
 
     Naps are excluded (D1.2), so a day with only a nap has no night sleep. If several

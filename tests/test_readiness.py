@@ -107,9 +107,7 @@ def test_calibrating_recovery_counts_as_missing(clean_db) -> None:
         (800.0, 14.0, 70.0, 75.0),  # cold and humid: the bands are two-sided
     ],
 )
-def test_air_score_penalties(
-    eco2: float, temp: float, humidity: float, expected: float
-) -> None:
+def test_air_score_penalties(eco2: float, temp: float, humidity: float, expected: float) -> None:
     """M2-T06: each environmental penalty is exact and they stack."""
     assert air_score(eco2, temp, humidity) == expected
 

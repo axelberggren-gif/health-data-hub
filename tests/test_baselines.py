@@ -39,9 +39,7 @@ def hrv_history(clean_db):
 
 
 def _baseline(db, metric: str, window: int) -> Baseline:
-    return (
-        db.query(Baseline).filter(Baseline.metric == metric, Baseline.window == window).one()
-    )
+    return db.query(Baseline).filter(Baseline.metric == metric, Baseline.window == window).one()
 
 
 @pytest.mark.parametrize(
@@ -52,9 +50,7 @@ def _baseline(db, metric: str, window: int) -> Baseline:
         (90, 39, 59.0),  # only 39 complete days exist -> HRV 40 … 78
     ],
 )
-def test_baseline_windows(
-    hrv_history, window: int, expected_n: int, expected_mean: float
-) -> None:
+def test_baseline_windows(hrv_history, window: int, expected_n: int, expected_mean: float) -> None:
     """M2-T07: each window's mean / SD / n match the hand-computed values."""
     recompute_baselines(hrv_history, REFERENCE)
 

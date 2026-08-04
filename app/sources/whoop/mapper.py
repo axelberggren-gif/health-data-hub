@@ -59,6 +59,7 @@ _STAGE_KEYS = [
 def map_sleep(rec: dict) -> tuple[str, dict, list[tuple[str, int]]]:
     score = rec.get("score") or {}
     summary = score.get("stage_summary") or {}
+    needed = score.get("sleep_needed") or {}
     external_id = _str(rec.get("id")) or ""
     values = {
         "start": _dt(rec.get("start")),
@@ -79,6 +80,7 @@ def map_sleep(rec: dict) -> tuple[str, dict, list[tuple[str, int]]]:
         "total_no_data_ms": summary.get("total_no_data_time_milli"),
         "sleep_cycle_count": summary.get("sleep_cycle_count"),
         "disturbance_count": summary.get("disturbance_count"),
+        "sleep_debt_ms": needed.get("need_from_sleep_debt_milli"),
         "raw": rec,
     }
     stages = [(kind, summary[key]) for kind, key in _STAGE_KEYS if summary.get(key) is not None]
