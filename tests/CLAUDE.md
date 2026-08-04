@@ -29,6 +29,11 @@ required check.
 - Never read the real `.env` or `health.db` from a test.
 
 ## Recent changes
+- V1 M1: added `factories.py` (TEST_SPEC rule 5) — committed-row builders (`make_sleep`,
+  `make_recovery`, `make_cycle`, `make_workout`, `make_air_reading`) plus `local()` / `utc()`
+  helpers. They normalize every timestamp to UTC, because that is how canonical rows are
+  stored. They also **commit**, so rows outlive their test: query-by-date tests must use a
+  date no other test uses. `test_dates.py` holds M1-T01…T08.
 - V1 M0: added `test_migrations.py` (M0-T01 — Alembic head must equal `Base.metadata`),
   `test_config_defaults.py` (M0-T02) and `test_auth.py` (M0-T03/T04). `test_auth.py` holds a
   `PROTECTED_ROUTES` list that later milestones **extend** with `/dashboard`, `/log` and

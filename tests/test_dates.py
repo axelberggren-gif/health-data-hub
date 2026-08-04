@@ -20,8 +20,15 @@ from app.derived.dates import (
     night_window,
     sleep_wake_date,
 )
-from tests.factories import local, make_air_reading, make_cycle, make_recovery, make_sleep
-from tests.factories import make_workout, utc
+from tests.factories import (
+    local,
+    make_air_reading,
+    make_cycle,
+    make_recovery,
+    make_sleep,
+    make_workout,
+    utc,
+)
 
 
 def test_sleep_attributes_to_the_wake_date() -> None:

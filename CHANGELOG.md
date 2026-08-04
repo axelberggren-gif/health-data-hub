@@ -6,6 +6,11 @@ PR that makes the change.
 ## Unreleased
 
 ### Added
+- V1 milestone **M1**: `app/derived/` with `dates.py` — the day-attribution rules every derived
+  table is keyed by (sleep → wake date, recovery → its linked sleep, workouts/cycles → their
+  start date, plus the night window for air readings). Handles both DST transitions and reads
+  naive stored timestamps as UTC, so a night can't land on the wrong day. Adds
+  `tests/factories.py`, the shared fixture builders the later milestones reuse (ax).
 - ADR-0009: record of the admin override used to merge M0 — the `review` check failed only
   because the PR edited `.github/workflows/ci.yml`, which the reviewer may never self-approve
   (ax).
