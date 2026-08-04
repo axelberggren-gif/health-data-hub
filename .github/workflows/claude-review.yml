@@ -4,7 +4,8 @@ name: claude-review
 # per-directory CLAUDE.md files) and posts a verdict. A fail-closed GATE step turns that
 # verdict into the required status check `review`: CHANGES_REQUESTED / a FAIL verdict /
 # a missing or duplicated verdict line / no-review / error / fork / untrusted-author all FAIL
-# the check, so a bad PR can never satisfy branch protection.
+# the check, so a bad PR can never satisfy branch protection. Dependabot PRs also always fail
+# it — GitHub denies them secrets and a writable token, so the reviewer cannot run (ADR-0007).
 #
 # The pass signal is a `GUARDRAIL_VERDICT: PASS` line in the bot's own review body, NOT a
 # formal approval: GitHub does not permit the Actions token to approve pull requests, so a
@@ -107,10 +108,23 @@ jobs:
                - OAuth safety: any new OAuth callback validates the CSRF `state`; tokens
                  are never written to logs.
 
-            4. Guardrail-tampering: if the diff edits `.github/`, `AGENTS.md`,
-               `CLAUDE.md`, `.claude/`, or `.gitignore`, REQUEST_CHANGES and explain that
-               changes to the guardrails themselves need the owner's manual review. (Say
-               clearly what changed and why it needs a human.)
+            4. Guardrail-tampering: you must never self-certify a change to your own safety
+               machinery. REQUEST_CHANGES if the diff edits any of:
+                 - `.github/` (workflows, issue/PR templates, dependabot config, CODEOWNERS)
+                 - `AGENTS.md`
+                 - `.claude/`
+                 - `.gitignore`
+                 - a per-directory `CLAUDE.md`, EXCEPT the carve-out below.
+               Explain clearly what changed and why it needs a human.
+
+               CARVE-OUT — do NOT block on this: a `CLAUDE.md` edit whose only hunks fall
+               under that file's `## Recent changes` heading. AGENTS.md *requires* every PR to
+               update the "Recent changes" list of any directory it touches, so blocking that
+               edit would make every ordinary PR unmergeable — the rule would eat itself.
+               Judge it from the diff: if the CLAUDE.md changes are confined to appending or
+               editing entries in that list, treat the file as untouched for this rule. Any
+               edit to a CLAUDE.md's Purpose, Key files, Conventions, or Invariants sections
+               still blocks, because those are the rules themselves.
 
             5. Missing tests for new logic: new functions in app/sources/, app/sync/, or
                app/export/ need a test OR a one-line justification in the PR body.
@@ -170,6 +184,7 @@ jobs:
           IS_DRAFT: ${{ github.event.pull_request.draft }}
           AUTHOR_ASSOC: ${{ github.event.pull_request.author_association }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          ACTOR: ${{ github.actor }}
         run: |
           set -euo pipefail
 
@@ -179,6 +194,16 @@ jobs:
           fi
           if [ "$IS_FORK" = "true" ]; then
             echo "::error::Fork PR — the AI reviewer can't run (forks get no secrets). Axel must review this manually. Failing closed."
+            exit 1
+          fi
+          # Dependabot gets its own message. GitHub treats a Dependabot `pull_request` like a
+          # fork PR: the workflow gets a READ-ONLY GITHUB_TOKEN and NO access to Actions
+          # secrets (only Dependabot secrets). So the reviewer has no API key AND could not
+          # post a review even if it had one — this is a platform limitation, not a repo
+          # misconfiguration, and no amount of allow-listing the author fixes it. The honest
+          # outcome is that a human reads dependency bumps. See ADR-0007.
+          if [ "$ACTOR" = "dependabot[bot]" ]; then
+            echo "::error::Dependabot PR — the AI reviewer cannot run on these (GitHub gives them a read-only token and no secrets). Axel: check the bump's release notes, confirm 'ci' is green, then merge with an override. Failing closed."
             exit 1
           fi
           case "$AUTHOR_ASSOC" in

@@ -20,6 +20,13 @@ PR that makes the change.
 - Project tooling: `pyproject.toml` (ruff/mypy/pytest config), `Makefile`, `requirements-dev.txt`.
 
 ### Fixed
+- Reviewer carve-out so ordinary PRs can go green: updating a `CLAUDE.md` "Recent changes" list
+  (which `AGENTS.md` requires) no longer trips the guardrail-tampering rule; edits to a
+  `CLAUDE.md`'s rule sections still need a human (ADR-0007) (ax).
+- Dependabot PRs now fail the `review` gate with an explanation of the platform limitation and the
+  next step, instead of a misleading "untrusted author" error (ADR-0007) (ax).
+- Corrected the required-check names in `AGENTS.md` / `ONBOARDING.md`: the contexts are the job
+  names `build` / `review` / `lint`, not the workflow names (ax).
 - The `review` gate could never open: it required a formal Approve, which GitHub does not permit
   the Actions token to give. The reviewer now emits a `GUARDRAIL_VERDICT: PASS` / `FAIL` line that
   the gate reads, still fail-closed on anything ambiguous (ADR-0006) (ax).

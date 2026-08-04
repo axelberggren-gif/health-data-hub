@@ -14,11 +14,13 @@ to run it. This page explains the few things you'll actually do.
 
 ## The three checks (what each green check means)
 
-| Check | What it proves | If it's red (failed) |
-|-------|----------------|----------------------|
-| **ci** | The code is formatted, type-correct, and the tests pass | Something is broken in the code — the AI should fix it and push again |
-| **claude-review** | The AI reviewer found no bugs, no leaked secrets/data, and no broken project rules | Open the PR's "Files changed" / review comments to see what it flagged |
-| **pr-title-lint** | The PR title is in the required format (e.g. `feat: add oura source`) | Edit the PR title to start with a type like `feat:` or `fix:` |
+On the PR page each check is listed by its **job** name, with the workflow name beside it:
+
+| Check (job name) | From workflow | What it proves | If it's red (failed) |
+|------------------|---------------|----------------|----------------------|
+| **build** | `ci` | The code is formatted, type-correct, and the tests pass | Something is broken in the code — the AI should fix it and push again |
+| **review** | `claude-review` | The AI reviewer found no bugs, no leaked secrets/data, and no broken project rules | Open the PR's "Files changed" / review comments to see what it flagged |
+| **lint** | `pr-title-lint` | The PR title is in the required format (e.g. `feat: add oura source`) | Edit the PR title to start with a type like `feat:` or `fix:` |
 
 ## Your normal flow
 
@@ -42,6 +44,26 @@ On the PR page, scroll to the checks box near the bottom:
 Just tell the AI: *"The reviewer requested changes on this PR, please address the comments."* It
 will read the comments, push new commits to the same branch, and the reviewer re-runs on its own.
 You don't merge until it turns green.
+
+## Dependency-update PRs (from "dependabot") — `review` is always red
+
+Once a week, a bot called **Dependabot** opens PRs that bump a library to a newer version. On
+those PRs the **`review` check will always be red**, and that is not a bug you or the AI can fix:
+GitHub deliberately gives bot-opened PRs a read-only token and no access to secrets, so the AI
+reviewer cannot run on them at all. `build` and `lint` still run normally.
+
+What to do with one:
+
+1. Check that **`build` is green** — that's your real safety net here, since it proves the app
+   still builds, type-checks, and passes its tests with the new version.
+2. Skim the PR description. Dependabot links the library's release notes; look for anything about
+   breaking changes.
+3. If it looks routine, merge it with the admin override (same button as below). If you'd rather
+   not decide, leave it — an un-merged dependency bump is not urgent, and you can ask the AI to
+   look at it in a session.
+
+This is a deliberate trade-off, not an oversight: dependency updates are exactly where
+supply-chain risk lives, so a human glance is the right default. (Recorded in ADR-0007.)
 
 ## Emergency: merging anyway (rare)
 
