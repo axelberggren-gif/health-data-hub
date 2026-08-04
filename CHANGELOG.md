@@ -19,6 +19,11 @@ PR that makes the change.
 - Test foundation: smoke test (app boots) + orchestrator idempotency test.
 - Project tooling: `pyproject.toml` (ruff/mypy/pytest config), `Makefile`, `requirements-dev.txt`.
 
+### Fixed
+- The `review` gate could never open: it required a formal Approve, which GitHub does not permit
+  the Actions token to give. The reviewer now emits a `GUARDRAIL_VERDICT: PASS` / `FAIL` line that
+  the gate reads, still fail-closed on anything ambiguous (ADR-0006) (ax).
+
 ### Changed
 - Made the verify loop reproducible: pinned `ruff` / `mypy` / `pytest` exactly in
   `requirements-dev.txt`, and `make` now invokes tools via `python -m` so the active
