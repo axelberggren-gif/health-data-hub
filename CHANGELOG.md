@@ -14,8 +14,9 @@ PR that makes the change.
     aggregate and readiness read. Naps never count as the night's sleep, and a date with no
     night sleep has **no** night window rather than a silent fallback to the whole day.
   - Days are bucketed by timezone **conversion**, never by UTC truncation, so a sleep ending
-    01:30 local (23:30 UTC the previous day) lands on the right date; DST transitions are
-    covered both ways.
+    01:30 local (23:30 UTC the previous day) lands on the right date; tested across both DST
+    transitions — the wake date, and that a local day is 23 h / 25 h on those two days, so a
+    night is never counted on two dates.
   - Naive datetimes are read as UTC. SQLite hands `DateTime(timezone=True)` columns back
     without a `tzinfo`, so a row round-tripped through the store would otherwise be
     misinterpreted as a local wall clock.
@@ -64,6 +65,11 @@ PR that makes the change.
   the gate reads, still fail-closed on anything ambiguous (ADR-0006) (ax).
 
 ### Changed
+- Told ruff that `app` is first-party (`known-first-party`, `pyproject.toml`). ruff classifies
+  an import by whether it resolves on disk, so a package that doesn't exist *yet* was sorted
+  into the third-party block — which made every test-first commit the V1 workflow requires
+  (tests land before the module they import) fail `ruff check`, and forced the import to be
+  moved again once the code arrived (ax).
 - Made the verify loop reproducible: pinned `ruff` / `mypy` / `pytest` exactly in
   `requirements-dev.txt`, and `make` now invokes tools via `python -m` so the active
   environment's pinned version runs instead of whatever is on `PATH` (ax).

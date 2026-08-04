@@ -77,6 +77,21 @@ def as_utc(value: datetime) -> datetime:
     return value.astimezone(UTC)
 
 
+def _merge(model: type, base: dict[str, Any], extra: dict[str, Any]) -> dict[str, Any]:
+    """Merge ``**extra`` over a builder's defaults, rejecting non-column names.
+
+    ``upsert()`` ends in a blind ``setattr``, so a typo like ``naps=True`` would
+    otherwise be accepted silently: it would set a plain Python attribute, the row
+    would be written *without* the flag, and the test would then assert against a
+    value the database never saw. Failing loudly here keeps a green test honest.
+    """
+    columns = set(model.__table__.columns.keys())  # type: ignore[attr-defined]
+    unknown = sorted(set(extra) - columns)
+    if unknown:
+        raise TypeError(f"{model.__name__} has no column(s) {unknown} — check the spelling")
+    return {**base, **extra}
+
+
 # --------------------------------------------------------------------------
 # Canonical row builders
 # --------------------------------------------------------------------------
@@ -87,24 +102,28 @@ def make_sleep(
     start: datetime | None = None,
     nap: bool = False,
     performance: float = 80.0,
+    source: str = WHOOP_SOURCE,
     source_external_id: str | None = None,
     **extra: Any,
 ) -> SleepSession:
     """A ``SleepSession``. ``start`` defaults to eight hours before ``end``."""
     end_utc = as_utc(end)
     start_utc = as_utc(start) if start is not None else end_utc - timedelta(hours=8)
-    values: dict[str, Any] = {
-        "start": start_utc,
-        "end": end_utc,
-        "nap": nap,
-        "sleep_performance_pct": performance,
-        "recorded_at": end_utc,
-    }
-    values.update(extra)
+    values = _merge(
+        SleepSession,
+        {
+            "start": start_utc,
+            "end": end_utc,
+            "nap": nap,
+            "sleep_performance_pct": performance,
+            "recorded_at": end_utc,
+        },
+        extra,
+    )
     obj, _ = upsert(
         db,
         SleepSession,
-        source=WHOOP_SOURCE,
+        source=source,
         source_external_id=source_external_id or _auto_id("fx-sleep"),
         values=values,
     )
@@ -120,6 +139,7 @@ def make_recovery(
     hrv: float = 55.0,
     rhr: float = 52.0,
     recorded_at: datetime | None = None,
+    source: str = WHOOP_SOURCE,
     source_external_id: str | None = None,
     **extra: Any,
 ) -> RecoveryDaily:
@@ -130,18 +150,21 @@ def make_recovery(
     stored as given — left ``None`` when not passed, so a test that relies on the
     ``recorded_at`` fallback has to say so explicitly.
     """
-    values: dict[str, Any] = {
-        "recovery_score": score,
-        "sleep_id": sleep_id,
-        "hrv_rmssd_ms": hrv,
-        "resting_hr_bpm": rhr,
-        "recorded_at": as_utc(recorded_at) if recorded_at is not None else None,
-    }
-    values.update(extra)
+    values = _merge(
+        RecoveryDaily,
+        {
+            "recovery_score": score,
+            "sleep_id": sleep_id,
+            "hrv_rmssd_ms": hrv,
+            "resting_hr_bpm": rhr,
+            "recorded_at": as_utc(recorded_at) if recorded_at is not None else None,
+        },
+        extra,
+    )
     obj, _ = upsert(
         db,
         RecoveryDaily,
-        source=WHOOP_SOURCE,
+        source=source,
         source_external_id=source_external_id or _auto_id("fx-recovery"),
         values=values,
     )
@@ -155,22 +178,26 @@ def make_cycle(
     start: datetime,
     strain: float = 12.4,
     end: datetime | None = None,
+    source: str = WHOOP_SOURCE,
     source_external_id: str | None = None,
     **extra: Any,
 ) -> CycleDay:
     """A ``CycleDay`` (WHOOP's ~24h physiological cycle). ``end`` defaults to ``start`` + 24h."""
     start_utc = as_utc(start)
-    values: dict[str, Any] = {
-        "start": start_utc,
-        "end": as_utc(end) if end is not None else start_utc + timedelta(hours=24),
-        "strain": strain,
-        "recorded_at": start_utc,
-    }
-    values.update(extra)
+    values = _merge(
+        CycleDay,
+        {
+            "start": start_utc,
+            "end": as_utc(end) if end is not None else start_utc + timedelta(hours=24),
+            "strain": strain,
+            "recorded_at": start_utc,
+        },
+        extra,
+    )
     obj, _ = upsert(
         db,
         CycleDay,
-        source=WHOOP_SOURCE,
+        source=source,
         source_external_id=source_external_id or _auto_id("fx-cycle"),
         values=values,
     )
@@ -184,22 +211,26 @@ def make_workout(
     start: datetime,
     end: datetime | None = None,
     strain: float = 8.0,
+    source: str = WHOOP_SOURCE,
     source_external_id: str | None = None,
     **extra: Any,
 ) -> Workout:
     """A ``Workout``. ``end`` defaults to one hour after ``start``."""
     start_utc = as_utc(start)
-    values: dict[str, Any] = {
-        "start": start_utc,
-        "end": as_utc(end) if end is not None else start_utc + timedelta(hours=1),
-        "strain": strain,
-        "recorded_at": start_utc,
-    }
-    values.update(extra)
+    values = _merge(
+        Workout,
+        {
+            "start": start_utc,
+            "end": as_utc(end) if end is not None else start_utc + timedelta(hours=1),
+            "strain": strain,
+            "recorded_at": start_utc,
+        },
+        extra,
+    )
     obj, _ = upsert(
         db,
         Workout,
-        source=WHOOP_SOURCE,
+        source=source,
         source_external_id=source_external_id or _auto_id("fx-workout"),
         values=values,
     )
@@ -215,24 +246,28 @@ def make_air_reading(
     temp: float = 19.0,
     humidity: float = 45.0,
     tvoc: float = 100.0,
+    source: str = MILL_SOURCE,
     source_external_id: str | None = None,
     **extra: Any,
 ) -> AirQualityReading:
     """An ``AirQualityReading`` from the Mill Sense sensor (one poll = one row)."""
-    values: dict[str, Any] = {
-        "recorded_at": as_utc(recorded_at),
-        "device_id": "fx-device",
-        "device_name": "Fixture Sense",
-        "eco2_ppm": eco2,
-        "temp_c": temp,
-        "humidity_pct": humidity,
-        "tvoc_ppb": tvoc,
-    }
-    values.update(extra)
+    values = _merge(
+        AirQualityReading,
+        {
+            "recorded_at": as_utc(recorded_at),
+            "device_id": "fx-device",
+            "device_name": "Fixture Sense",
+            "eco2_ppm": eco2,
+            "temp_c": temp,
+            "humidity_pct": humidity,
+            "tvoc_ppb": tvoc,
+        },
+        extra,
+    )
     obj, _ = upsert(
         db,
         AirQualityReading,
-        source=MILL_SOURCE,
+        source=source,
         source_external_id=source_external_id or _auto_id("fx-air"),
         values=values,
     )

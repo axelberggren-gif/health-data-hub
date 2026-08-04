@@ -70,11 +70,17 @@ def event_local_date(start_utc: datetime, tz: str | None = None) -> date:
     return local_date(start_utc, tz)
 
 
-def _local_day_bounds_utc(day: date, tz: str | None = None) -> tuple[datetime, datetime]:
+def local_day_bounds_utc(day: date, tz: str | None = None) -> tuple[datetime, datetime]:
     """The UTC instants bracketing a local calendar day: ``[start, next start)``.
 
-    Built from local midnight so DST transitions shorten or lengthen the day
-    correctly instead of assuming every day is 24 h long.
+    Built from local midnight, so a DST transition day is correctly 23 h or 25 h
+    long instead of an assumed 24. Getting this wrong double-counts a night: with
+    a flat 24 h, the spring-forward day's window runs an hour too far and a sleep
+    ending just after it is returned as the night sleep for *two* dates.
+
+    Half-open on purpose. A sleep ending exactly at local midnight belongs to the
+    day that is starting, not the one that just ended — inclusive bounds would
+    put it in both.
     """
     zone = ZoneInfo(tz or home_timezone())
     start_local = datetime.combine(day, datetime.min.time(), tzinfo=zone)
@@ -95,7 +101,7 @@ def night_sleep_for_date(db: Session, day: date, tz: str | None = None) -> Sleep
     several night sessions share a wake date (a fragmented night) the longest
     one wins, tie-broken by the later ``end``, so the choice is deterministic.
     """
-    start_utc, end_utc = _local_day_bounds_utc(day, tz)
+    start_utc, end_utc = local_day_bounds_utc(day, tz)
     candidates = (
         db.execute(
             select(SleepSession).where(
@@ -140,6 +146,11 @@ def night_window(db: Session, day: date, tz: str | None = None) -> tuple[datetim
     breathed while asleep, which is what readiness's environment component uses.
     No night sleep for the date means no window, and therefore no night-air
     aggregate (never a silent fallback to the whole calendar day).
+
+    The bounds are the sleep's own stored instants and are **inclusive at both
+    ends**: D1.5a says "between … `start` and `end`" without settling it, so it
+    is settled here. Every consumer must use the same comparison or two
+    night-air aggregates over the same night will disagree.
     """
     sleep = night_sleep_for_date(db, day, tz)
     if sleep is None or sleep.start is None or sleep.end is None:

@@ -34,7 +34,9 @@ required check.
   for readable timestamps) that **every later milestone reuses** rather than hand-rolling rows.
   They write via `upsert()` and auto-assign `source_external_id`s from a deterministic counter.
   Also `test_dates.py` (M1-T01 … M1-T08). Note for DB-backed tests: `night_sleep_for_date` /
-  `night_window` query the whole table for a date, so give each test its own date range.
+  `night_window` scan the whole `sleep_session` table for a date, so every DB-writing test must
+  own **dates disjoint from the other tests'** — one stray row on a shared date changes another
+  test's answer. **2026-06-10 is reserved for M2-T01's golden day**: keep it free of fixture rows.
 - V1 M0: added `test_migrations.py` (M0-T01 — Alembic head must equal `Base.metadata`),
   `test_config_defaults.py` (M0-T02) and `test_auth.py` (M0-T03/T04). `test_auth.py` holds a
   `PROTECTED_ROUTES` list that later milestones **extend** with `/dashboard`, `/log` and

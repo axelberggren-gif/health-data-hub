@@ -11,10 +11,16 @@ derived tables — it does not implement `HealthDataSource` because there is not
 to sync.
 
 ## Key files
-- `dates.py` — day attribution (D1). Pure functions: `local_date`, `sleep_wake_date`,
-  `event_local_date`, `attribute_recovery`, `night_sleep_for_date`, `night_window`,
-  plus the `as_utc` naive-is-UTC helper. Everything downstream keys off these, so a bug
-  here misbuckets every derived row.
+- `dates.py` — day attribution (D1). Everything downstream keys off these, so a bug here
+  misbuckets every derived row. Two kinds of function, and the difference decides how you
+  call and test them:
+  - **Pure** (arguments in, value out): `as_utc`, `local_date`, `sleep_wake_date`,
+    `event_local_date`, `local_day_bounds_utc` — the last one is public because M2's
+    local-date air aggregate (D1.5b) must bracket a day with exactly these bounds.
+  - **Store-reading**: `attribute_recovery`, `night_sleep_for_date`, `night_window` — they
+    take a `Session` and issue `SELECT`s, so the answer depends on DB state; they read only
+    and never open or commit a session. `home_timezone()` reads `Settings`, so a `tz`-less
+    call depends on config too — pass `tz` explicitly in tests.
 - (M2) `rollup.py`, `baselines.py`, `readiness.py`, `anomalies.py`, `jobs.py`.
 
 ## Conventions
@@ -34,6 +40,9 @@ to sync.
   sleep when resolvable, else `recorded_at`.
 - No night sleep for a date ⇒ `night_window()` is `None` ⇒ **no** night-air aggregate.
   Never silently widen to the whole calendar day.
+- The night window is **inclusive of both `start` and `end`** (`start <= t <= end`). D1.5a
+  only says "between"; M1-T08 pins the inclusive reading, and M2's night-air rollup must use
+  the same comparison or its aggregates will disagree with M1's tests.
 - (M2) Every derived write goes through `upsert()` with `source="derived"` and a
   deterministic `source_external_id` (the ISO date), so recomputation is idempotent.
 

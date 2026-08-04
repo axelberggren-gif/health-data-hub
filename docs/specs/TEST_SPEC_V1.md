@@ -49,10 +49,13 @@
 `sleep_wake_date(end_utc, tz=None) -> date`, `event_local_date(start_utc, tz=None) -> date`,
 `attribute_recovery(recovery_row, db, tz=None) -> date | None`,
 `night_sleep_for_date(db, day, tz=None) -> SleepSession | None`,
-`night_window(db, day, tz=None) -> tuple[dt, dt] | None`, plus the `local_date`,
+`night_window(db, day, tz=None) -> tuple[dt, dt] | None`,
+`local_day_bounds_utc(day, tz=None) -> tuple[dt, dt]` (public, not private: M2's local-date
+air aggregate in D1.5b brackets a day with exactly these bounds), plus the `local_date`,
 `as_utc` and `home_timezone` helpers.
 
-Three deviations from the originally assumed signatures, each in this PR per rule 4:
+Five deviations from the catalog as written — first the signatures, then the fixture data —
+each recorded in this PR per rule 4:
 1. `tz` is **optional everywhere** and defaults to `Settings.home_timezone`, so callers
    in M2+ don't thread the zone through every call; tests pass it explicitly to stay
    hermetic (a test must never depend on the owner's real `.env`).
@@ -62,6 +65,15 @@ Three deviations from the originally assumed signatures, each in this PR per rul
 3. `night_sleep_for_date` is named explicitly (M1-T03 referred to it only as "the
    nightly-sleep selector"). When several non-nap sessions share a wake date it returns
    the longest, tie-broken by the later `end`, so the choice is deterministic.
+4. **M1-T03's nap is longer than the night sleep**, not the catalog's `14:00–15:00`: a 1 h
+   nap loses to an 8 h night on the selector's "longest wins" ordering anyway, so that case
+   would pass even if naps were never excluded — only a nap that outlasts the night proves
+   the exclusion is what makes it green. The nap-only half keeps a short nap.
+5. **M1-T03/T07 dates moved off 2026-06-10.** M2-T01 fixes 2026-06-10 as its golden-day date
+   and the suite shares one temp SQLite database, so M1 rows on that date would corrupt its
+   assertions (an extra workout, a second cycle, and a leftover sleep that outranks M2's own
+   fixture). M1's DB-writing tests therefore reserve other dates and **2026-06-10 is left
+   free for M2**.
 
 | ID | Test case |
 |---|---|
