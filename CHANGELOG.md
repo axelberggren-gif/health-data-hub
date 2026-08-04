@@ -6,6 +6,9 @@ PR that makes the change.
 ## Unreleased
 
 ### Added
+- ADR-0009: record of the admin override used to merge M0 — the `review` check failed only
+  because the PR edited `.github/workflows/ci.yml`, which the reviewer may never self-approve
+  (ax).
 - V1 milestone **M0**: database migrations and the auth wall the rest of V1 builds on (ADR-0008)
   (ax).
   - Alembic (`alembic/`, `alembic.ini`, `make migrate` / `make migration m="…"`): revision `0001`
