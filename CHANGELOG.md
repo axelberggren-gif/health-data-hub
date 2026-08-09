@@ -25,6 +25,11 @@ PR that makes the change.
     reused by every later milestone. They write through `upsert()`, so the fixtures obey the
     same idempotency invariant as production code.
   - Tests M1-T01 … M1-T08, added red before the implementation (TEST_SPEC rule 1).
+  - ADR-0009 records a guardrail conflict M1 surfaced: the `review` gate blocks **any** PR that
+    adds a package, because ADR-0007's carve-out covers only `CLAUDE.md` "Recent changes" edits
+    while `TECH_SPEC_V1.md` requires a new package to ship its own `CLAUDE.md` in the same PR.
+    Recorded as Proposed — widening the carve-out loosens the guardrails, so it is the owner's
+    call and belongs in its own PR, not this one (ax).
 - V1 milestone **M0**: database migrations and the auth wall the rest of V1 builds on (ADR-0008)
   (ax).
   - Alembic (`alembic/`, `alembic.ini`, `make migrate` / `make migration m="…"`): revision `0001`
