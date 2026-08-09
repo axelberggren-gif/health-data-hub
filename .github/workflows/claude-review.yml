@@ -111,20 +111,48 @@ jobs:
             4. Guardrail-tampering: you must never self-certify a change to your own safety
                machinery. REQUEST_CHANGES if the diff edits any of:
                  - `.github/` (workflows, issue/PR templates, dependabot config, CODEOWNERS)
-                 - `AGENTS.md`
+                 - `AGENTS.md`, EXCEPT carve-out (c) below.
                  - `.claude/`
                  - `.gitignore`
-                 - a per-directory `CLAUDE.md`, EXCEPT the carve-out below.
+                 - a per-directory `CLAUDE.md`, EXCEPT the carve-outs below.
                Explain clearly what changed and why it needs a human.
 
-               CARVE-OUT — do NOT block on this: a `CLAUDE.md` edit whose only hunks fall
-               under that file's `## Recent changes` heading. AGENTS.md *requires* every PR to
-               update the "Recent changes" list of any directory it touches, so blocking that
-               edit would make every ordinary PR unmergeable — the rule would eat itself.
-               Judge it from the diff: if the CLAUDE.md changes are confined to appending or
-               editing entries in that list, treat the file as untouched for this rule. Any
-               edit to a CLAUDE.md's Purpose, Key files, Conventions, or Invariants sections
-               still blocks, because those are the rules themselves.
+               CARVE-OUTS — do NOT block on these three. Each is documentation the repo's own
+               rules *require* a PR to write, so blocking it would make the required edit
+               unmergeable — the rule would eat itself. All three are judged from the diff.
+
+               (a) A `CLAUDE.md` edit whose only hunks fall under that file's
+                   `## Recent changes` heading. AGENTS.md requires every PR to update the
+                   "Recent changes" list of any directory it touches.
+
+               (b) A brand-new per-directory `CLAUDE.md` added by the same PR that creates the
+                   directory it documents — including its Purpose / Key files / Conventions /
+                   Invariants sections. TECH_SPEC_V1.md requires a new package to ship its
+                   `CLAUDE.md` in the PR that creates it, and such a file cannot exist without
+                   those sections. A new directory's canon adds no loosening: it constrains
+                   code that did not exist before this PR, and you still review that code
+                   against the global invariants in AGENTS.md. This does NOT cover adding a
+                   `CLAUDE.md` to a directory that already existed on the base branch — that
+                   writes rules for existing code, so it blocks.
+
+               (c) Adding or removing a single list entry that names a path the same PR adds or
+                   deletes: an entry in a `CLAUDE.md`'s Key-files / sub-package list, or a line
+                   in AGENTS.md's "Per-directory CLAUDE.md map". These are mechanical index
+                   updates — every `CLAUDE.md` header requires the file to be fixed when it
+                   disagrees with reality, so a PR that adds a package must list it. Verify the
+                   named path really is added or deleted by this diff; if it is not, block.
+                   *Rewording* an existing entry is not covered — that blocks.
+
+               Everything else about the rule stands. In particular, still REQUEST_CHANGES on:
+               any edit to the Purpose / Key files / Conventions / Invariants sections of a
+               `CLAUDE.md` that already existed on the base branch (beyond (c)'s mechanical
+               add/remove), and any other AGENTS.md edit. Those are the rules themselves.
+
+               OVERRIDE — carve-out (b) never excuses a weakened rule. If a new directory's
+               `CLAUDE.md` contradicts, narrows, or grants an exception to any global invariant
+               in AGENTS.md (the source seam, idempotent persistence via `upsert()`, the
+               canonical model as the contract, secrets only via `Settings`, OAuth `state`
+               validation), REQUEST_CHANGES and quote the conflicting line.
 
             5. Missing tests for new logic: new functions in app/sources/, app/sync/, or
                app/export/ need a test OR a one-line justification in the PR body.

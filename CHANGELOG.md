@@ -60,6 +60,12 @@ PR that makes the change.
 - Project tooling: `pyproject.toml` (ruff/mypy/pytest config), `Makefile`, `requirements-dev.txt`.
 
 ### Fixed
+- Reviewer carve-outs widened so a PR that adds a package can go green on its own merits: a new
+  directory's first `CLAUDE.md`, and adding/removing a Key-files or AGENTS.md map entry naming a
+  path the same PR adds, no longer trip the guardrail-tampering rule. Editing the rule sections
+  of an existing `CLAUDE.md` still needs a human, and a new package whose invariants contradict
+  `AGENTS.md` is blocked anyway. M1+M2 (#25) was clean on the substance and still needed an
+  owner override for exactly this; four more V1 milestones would have too (ADR-0010) (ax).
 - Reviewer carve-out so ordinary PRs can go green: updating a `CLAUDE.md` "Recent changes" list
   (which `AGENTS.md` requires) no longer trips the guardrail-tampering rule; edits to a
   `CLAUDE.md`'s rule sections still need a human (ADR-0007) (ax).
