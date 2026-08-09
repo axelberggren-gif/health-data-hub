@@ -28,6 +28,13 @@ ignore = [
 # directory (migration scripts, not an importable package) makes ruff guess "first-party"
 # and split `from alembic import op` away from `from alembic.config import Config`.
 known-third-party = ["alembic"]
+# Our own package, stated rather than inferred. ruff classifies an import by whether it
+# resolves on disk, so a sub-package that does not exist YET (`app.derived`, `app.insights`)
+# is guessed third-party and sorted into the wrong block. That matters here because the
+# test-first workflow in docs/specs/TEST_SPEC_V1.md requires each milestone's tests to be
+# committed BEFORE the module they import exists — without this line every one of those
+# commits fails `ruff check`, and the import has to be moved again once the code lands.
+known-first-party = ["app"]
 
 [tool.ruff.lint.per-file-ignores]
 # Tests may use assert and slightly looser patterns.
