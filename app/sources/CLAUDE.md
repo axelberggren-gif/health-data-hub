@@ -32,4 +32,8 @@ touching the store, sync, or export layers.
 - Tokens/credentials are read from `Settings`; never logged, never committed.
 
 ## Recent changes
+- V1 M2: the WHOOP sleep mapper now carries `sleep_debt_ms`
+  (`score.sleep_needed.need_from_sleep_debt_milli`) into the canonical model, so the derived
+  layer never has to read a source payload out of `raw`. The derived layer is not a source and
+  is not registered here — see ADR-0009.
 - Documented the seam + invariants (initial setup).

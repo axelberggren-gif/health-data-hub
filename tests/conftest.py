@@ -15,8 +15,15 @@ _TEST_DB = Path(tempfile.gettempdir()) / "health_hub_test.db"
 _TEST_DB.unlink(missing_ok=True)
 os.environ["DATABASE_URL"] = f"sqlite+pysqlite:///{_TEST_DB}"
 
+# Keep the suite deterministic: the derivation scheduler would otherwise run a catch-up
+# derivation every time a test boots the app through the `client` fixture, writing rows for
+# the real "today" underneath tests that assert on derived rows. The scheduler's own
+# behaviour is tested by calling its functions directly (M2-T10).
+os.environ["DERIVED_SCHEDULE_ENABLED"] = "false"
+
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy import text  # noqa: E402
 
 from app.db import Base, SessionLocal, engine, init_db  # noqa: E402
 
@@ -48,3 +55,34 @@ def client():
 
     with TestClient(app) as c:
         yield c
+
+
+#: Tables whose rows are keyed by *date* rather than by a per-test external id. Distinct
+#: `source_external_id`s (the usual house rule) can't isolate tests that ask "what happened
+#: on day D" or "what is the 30-day baseline" — another test's rows for the same day would
+#: be picked up. Tests that query by day empty these first via the `clean_db` fixture.
+_DAY_SCOPED_TABLES = (
+    "sleep_stage",
+    "sleep_session",
+    "recovery_daily",
+    "cycle_day",
+    "workout",
+    "air_quality_reading",
+    "daily_summary",
+    "baseline",
+    "insight_card",
+)
+
+
+@pytest.fixture
+def clean_db(db):
+    """A session with the day-scoped tables emptied, before and after the test."""
+
+    def _wipe() -> None:
+        for table in _DAY_SCOPED_TABLES:
+            db.execute(text(f"DELETE FROM {table}"))  # noqa: S608 (fixed table names)
+        db.commit()
+
+    _wipe()
+    yield db
+    _wipe()

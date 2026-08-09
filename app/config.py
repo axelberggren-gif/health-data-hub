@@ -29,6 +29,14 @@ class Settings(BaseSettings):
     home_lat: float = 0.0
     home_lon: float = 0.0
 
+    # --- Derived layer (tech spec §5) ---
+    # The derivation job is local computation over data already in the store — no
+    # credentials, no network — so it runs by default. It ticks once a day at
+    # `derived_run_hour` local time and catches up on startup if it went stale, because the
+    # host is a laptop that sleeps and must never assume the job ran yesterday.
+    derived_schedule_enabled: bool = True
+    derived_run_hour: int = 6
+
     # --- LLM seam (tech spec §10) ---
     # Empty API key => the LLM-backed routes answer 503; everything else works.
     anthropic_api_key: str = ""

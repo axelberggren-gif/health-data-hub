@@ -49,6 +49,15 @@ Assumed API (adjust names in the same PR if implementation differs, per rule 4):
 `sleep_wake_date(end_utc, tz) -> date`, `attribute_recovery(recovery_row, db) -> date`,
 `event_local_date(start_utc, tz) -> date`, `night_window(db, date) -> tuple[dt, dt] | None`.
 
+**As implemented (rule 4):** `attribute_recovery(db, recovery, tz=None)` takes the session
+first, matching every other db-aware helper in the module, and `tz` defaults to
+`Settings.home_timezone` throughout instead of being required. Two functions were added
+because test cases need them: `night_sleep_for_date(db, day)` (M1-T03 asserts what the
+"nightly-sleep selector" returns) and `night_air_readings(db, day)` (M1-T08 asserts *which
+readings* the window selects, not just its bounds). `make_checkin` from rule 5 lands with M3,
+which is where the `checkin_daily` table it writes to is created; `make_summary`'s keyword is
+`day=` rather than `date=` so it does not shadow `datetime.date` inside the builder.
+
 | ID | Test case |
 |---|---|
 | **M1-T01** | Sleep ending 2026-06-10 07:12 local → wake date `2026-06-10`. |
@@ -75,6 +84,36 @@ Assumed API (adjust names in the same PR if implementation differs, per rule 4):
 | **M2-T09** | **Illness warning is a conjunction.** Exactly one of {hrv_drop, rhr_elevated, resp_rate_up, skin_temp_up} firing → no `illness_warning` card; two firing → card upserted with `kind="illness_warning"` and it appears in `daily_summary.flags`. |
 | **M2-T10** | **Catch-up self-heals.** Newest `daily_summary` is 3 days stale; the startup catch-up path triggers a derivation that fills all missing dates through yesterday. Also: `POST /derived/run?days_back=3` returns per-step counts and fills the same gap. |
 | **M2-T11** | **Provenance.** Every derived row has `source == "derived"` and `source_external_id == date.isoformat()`; writing goes through `upsert()` (assert by re-running and checking no duplicate under the unique constraint). |
+
+**As implemented (rule 4):**
+
+- **M2-T11** — the ISO-date key is asserted for `daily_summary`. `insight_card` is keyed by
+  *finding* (`"anomaly:hrv_drop"`, `"illness_warning"`) exactly as TECH_SPEC §4 specifies, not
+  by date; the test asserts `source == "derived"`, a non-empty deterministic key, and that
+  re-running duplicates nothing.
+- **`insight_card` lands in M2, not M3/M4** — §8 is an M2 deliverable and the illness warning
+  has to write a card. M4 still owns the correlation fields and the wider card lifecycle.
+- **M2-T01/T02/T03…** — `run_daily_derivation(db, days_back, *, today=None)` gained the
+  `today` keyword: it pins the last date of the window so a test (or a manual backfill) can
+  derive a historical window instead of only the last N days up to the real today.
+- **M2-T06** — the "clamps at ≥ 0" assertion is a guard, not a reachable case: the penalties
+  sum to at most 65, so the worst air scores 35. The test asserts extreme inputs stay ≥ 0 so
+  future penalty tuning cannot produce a negative score.
+- **M2-T07/T08** — baselines use the **population** SD (a window is the complete set of days it
+  covers, not a sample from a pool). That also makes the thresholds exact rather than dependent
+  on an estimator: 15 days at 50 and 15 at 60 give a mean of exactly 55 and an SD of exactly 5.
+  Flag comparisons additionally round the z-score to 3 decimals so a value sitting on the
+  threshold fires deterministically instead of on floating-point luck.
+- **M2-T08's sleep-debt fixture** — the 7-day window is *inside* the 90-day window, so the test
+  solves for the recent-night duration that makes the ratio exactly 89 % / 91 % rather than
+  setting the two means independently.
+- **Reference date** — baselines and flags are evaluated against the newest date that *has*
+  data, not the calendar today: before the morning's WHOOP sync there is no data for today, and
+  judging a blank day against a month of real ones would fire a flag a day early.
+- **Fixtures for date-keyed tests** — distinct `source_external_id`s cannot isolate tests that
+  query by day or aggregate a window, so those tests use a `clean_db` fixture that empties the
+  day-scoped tables. `conftest.py` also sets `DERIVED_SCHEDULE_ENABLED=false` so booting the
+  app in a test never runs a catch-up derivation underneath it.
 
 ## M3 — Manual + weather sources, reserved tables
 

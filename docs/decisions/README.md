@@ -38,3 +38,4 @@ on a missing ADR.
 - [0006 — The gate reads a sentinel verdict line](0006-gate-reads-a-sentinel-verdict-line.md)
 - [0007 — Reviewer carve-outs: CLAUDE.md and Dependabot](0007-reviewer-carve-outs-claude-md-and-dependabot.md)
 - [0008 — Alembic migrations and a single app token for the data routes](0008-alembic-migrations-and-app-token-auth.md)
+- [0009 — The derived layer is a consumer, not a source](0009-derived-layer-is-a-consumer.md)

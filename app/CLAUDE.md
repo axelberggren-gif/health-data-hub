@@ -15,9 +15,12 @@ store (`models.py`) → consumers (export, future insights)**.
 - `db.py` — engine, `SessionLocal`, `Base`, `get_db()` dependency, `init_db()` (dev `create_all`;
   production uses Alembic).
 - `models.py` — the canonical schema (recovery, sleep + stages, workout, cycle, profile, body,
-  air quality, vitals) + the `SourceRecord` provenance mixin.
-- `scheduler.py` — optional background Mill poller.
-- Sub-packages: `sources/`, `sync/`, `api/`, `export/` — each has its own `CLAUDE.md`.
+  air quality, vitals) + the `SourceRecord` provenance mixin, and the *derived* tables
+  (`daily_summary`, `baseline`, `insight_card`) written only by `derived/`.
+- `scheduler.py` — background jobs: the optional Mill poller and the daily derivation tick
+  (plus a startup catch-up when the derived layer has gone stale).
+- Sub-packages: `sources/`, `sync/`, `derived/`, `api/`, `export/` — each has its own
+  `CLAUDE.md`.
 
 ## Conventions
 - New runtime deps go in `requirements.txt`; dev/CI tooling in `requirements-dev.txt`.
@@ -30,6 +33,11 @@ store (`models.py`) → consumers (export, future insights)**.
   migration-aware path and an ADR (see `docs/decisions/`), not ad hoc.
 
 ## Recent changes
+- V1 M1 + M2: added `derived/` — the layer that rolls the canonical store up into one
+  `daily_summary` row per local date, plus baselines, readiness and anomaly flags. New tables
+  `daily_summary` / `baseline` / `insight_card` and `sleep_session.sleep_debt_ms` ship in
+  Alembic revision `0002`; `Settings` gained `derived_schedule_enabled` / `derived_run_hour`.
+  See ADR-0009.
 - V1 M0: Alembic migrations are now the only way to change an existing table (`alembic/`,
   `make migrate`, revision `0001` = the current schema); `Settings` gained the V1 fields
   (`app_token`, `home_timezone`, `home_lat`/`home_lon`, `anthropic_api_key`, `llm_*`), all

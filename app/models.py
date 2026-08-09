@@ -11,10 +11,12 @@ incomplete and so records can be re-mapped later.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from datetime import date as dt_date
 
 from sqlalchemy import (
     JSON,
     Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -142,6 +144,10 @@ class SleepSession(SourceRecord, Base):
     total_no_data_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     sleep_cycle_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     disturbance_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    #: How much of the night's sleep need came from accumulated debt (WHOOP
+    #: ``sleep_needed.need_from_sleep_debt_milli``). Kept canonical rather than read out of
+    #: ``raw`` downstream, so the derived layer never parses a source payload shape.
+    sleep_debt_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     stages: Mapped[list[SleepStage]] = relationship(
         back_populates="session", cascade="all, delete-orphan"
@@ -268,6 +274,138 @@ class VitalsTimeseries(Base):
     metric: Mapped[str] = mapped_column(String, index=True)  # hr|skin_temp|...
     ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     value: Mapped[float] = mapped_column(Float)
+
+
+# --------------------------------------------------------------------------
+# Derived tables (written by app/derived/, never by a source)
+#
+# These are *computed* from the canonical tables above, so they are safe to drop and
+# rebuild: `run_daily_derivation` reproduces them from source data. They still carry the
+# `SourceRecord` provenance columns with `source="derived"`, so the one idempotent write
+# path (`app.sync.orchestrator.upsert`) and the `(source, source_external_id)` unique
+# constraint apply to them exactly as they do to ingested rows. See ADR-0009.
+# --------------------------------------------------------------------------
+class DailySummary(SourceRecord, Base):
+    """One row per local date: everything known about a day, in one place.
+
+    The shape the dashboard, the insight engine and the LLM brief all read, so nothing
+    downstream has to re-derive "what happened on 2026-06-10" from six tables and a
+    timezone rule. `source_external_id` is the ISO date, which is what makes recomputation
+    idempotent.
+    """
+
+    __tablename__ = "daily_summary"
+    __table_args__ = (
+        UniqueConstraint("source", "source_external_id", name="uq_daily_summary_source_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    date: Mapped[dt_date] = mapped_column(Date, unique=True, index=True)
+
+    # --- recovery (that date's recovery, attributed per D1.3) ---
+    recovery_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    hrv_rmssd_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    resting_hr_bpm: Mapped[float | None] = mapped_column(Float, nullable=True)
+    spo2_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    skin_temp_c: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # --- the night's main sleep (naps excluded, D1.2) ---
+    sleep_performance_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    sleep_efficiency_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    sleep_duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sleep_debt_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    rem_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    slow_wave_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    respiratory_rate: Mapped[float | None] = mapped_column(Float, nullable=True)
+    disturbance_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # --- strain & training load (cycle + that date's workouts, D1.4) ---
+    day_strain: Mapped[float | None] = mapped_column(Float, nullable=True)
+    workout_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    workout_strain_sum: Mapped[float | None] = mapped_column(Float, nullable=True)
+    kilojoule: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # --- indoor air during the night window (D1.5a) ---
+    night_temp_c_avg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    night_eco2_ppm_avg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    night_eco2_ppm_max: Mapped[float | None] = mapped_column(Float, nullable=True)
+    night_tvoc_ppb_avg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    night_humidity_pct_avg: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # --- weather / daylight (filled by the open_meteo source in M3) ---
+    weather_temp_min_c: Mapped[float | None] = mapped_column(Float, nullable=True)
+    weather_temp_max_c: Mapped[float | None] = mapped_column(Float, nullable=True)
+    daylight_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sunrise: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    sunset: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # --- the daily check-in (filled by the manual source in M3) ---
+    checkin_mood: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    checkin_energy: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    checkin_stress: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    checkin_soreness: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    alcohol_units: Mapped[float | None] = mapped_column(Float, nullable=True)
+    caffeine_after_14: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    last_caffeine_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    # --- the derived verdict ---
+    readiness_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    #: The components and weights actually used, so the number can always be explained.
+    readiness_components: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    #: Anomaly / warning dicts that fired for this date (see app/derived/flags.py).
+    flags: Mapped[list | None] = mapped_column(JSON, nullable=True)
+
+
+class Baseline(Base):
+    """Trailing mean / SD per metric and window — "what is normal for me lately".
+
+    Recomputed in place (no provenance mixin): a baseline is a cache of a calculation over
+    `daily_summary`, not a record of something that happened. Windows always exclude the day
+    being judged, so a value never influences the baseline it is compared against.
+    """
+
+    __tablename__ = "baseline"
+    __table_args__ = (UniqueConstraint("metric", "window", name="uq_baseline_metric_window"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    metric: Mapped[str] = mapped_column(String, index=True)  # a daily_summary column name
+    window: Mapped[int] = mapped_column(Integer)  # trailing days: 7 | 30 | 90
+    mean: Mapped[float | None] = mapped_column(Float, nullable=True)
+    sd: Mapped[float | None] = mapped_column(Float, nullable=True)
+    n: Mapped[int] = mapped_column(Integer, default=0)
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class InsightCard(SourceRecord, Base):
+    """A finding worth showing the owner: an anomaly, a warning, a correlation.
+
+    One row per *finding*, not per day — `source_external_id` is a deterministic key for the
+    finding itself (e.g. ``"anomaly:hrv_drop"``), so re-running the engine updates the card's
+    status and `last_confirmed` instead of accumulating a new copy every day. The statistics
+    fields are filled by the correlation engine in M4; M2 only writes anomaly and
+    illness-warning cards.
+    """
+
+    __tablename__ = "insight_card"
+    __table_args__ = (
+        UniqueConstraint("source", "source_external_id", name="uq_insight_card_source_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String, index=True)  # correlation|illness_warning|...
+    title: Mapped[str] = mapped_column(String)
+    body: Mapped[str] = mapped_column(String)
+    metric_x: Mapped[str | None] = mapped_column(String, nullable=True)
+    metric_y: Mapped[str | None] = mapped_column(String, nullable=True)
+    effect_size: Mapped[float | None] = mapped_column(Float, nullable=True)
+    n: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    p_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    lag_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_confirmed: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    status: Mapped[str] = mapped_column(String, default="active")  # active|expired|dismissed
 
 
 # Tables exposed by the export consumer (excludes connection/cursor bookkeeping).
