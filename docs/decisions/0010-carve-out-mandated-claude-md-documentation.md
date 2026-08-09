@@ -14,7 +14,7 @@ The same trap has now closed on a second, wider class of edit. PR #25 (V1 milest
 the derived layer) was reviewed, found clean on the substance — the bot's own words: *"the
 actual code in this PR is in good shape … No secrets or personal data … No data-corruption
 risk … Invariants respected … No code changes are required from my side"* — and still returned
-`GUARDRAIL_VERDICT: FAIL`, on four documentation hunks:
+a blocking verdict, on four documentation hunks:
 
 1. `app/derived/CLAUDE.md` — a brand-new per-directory canon file, which necessarily has an
    Invariants section.
