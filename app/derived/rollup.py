@@ -18,8 +18,17 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..models import AirQualityReading, CycleDay, RecoveryDaily, SleepSession, Workout
+from ..models import (
+    AirQualityReading,
+    CheckinDaily,
+    CycleDay,
+    RecoveryDaily,
+    SleepSession,
+    WeatherDaily,
+    Workout,
+)
 from .dates import (
+    as_utc,
     attribute_recovery,
     day_bounds,
     event_local_date,
@@ -60,6 +69,26 @@ AIR_COLUMNS = (
     "night_tvoc_ppb_avg",
     "night_humidity_pct_avg",
 )
+CHECKIN_COLUMNS = (
+    "checkin_mood",
+    "checkin_energy",
+    "checkin_stress",
+    "checkin_soreness",
+    "alcohol_units",
+    "caffeine_after_14",
+    "last_caffeine_at",
+)
+WEATHER_COLUMNS = (
+    "weather_temp_min_c",
+    "weather_temp_max_c",
+    "daylight_seconds",
+    "sunrise",
+    "sunset",
+)
+
+#: Caffeine from this local hour onwards is the "late caffeine" the sleep literature cares
+#: about. A named constant, not a literal in the rule, so tuning it is one edit (D1 house rule).
+CAFFEINE_CUTOFF_HOUR = 14
 
 
 def _mean(values: list[float]) -> float | None:
@@ -150,6 +179,63 @@ def air_values(readings: list[AirQualityReading]) -> dict[str, Any]:
     }
 
 
+def checkin_values(checkin: CheckinDaily | None, tz: ZoneInfo) -> dict[str, Any]:
+    """The check-in columns, including the derived late-caffeine flag.
+
+    `caffeine_after_14` is a *local-clock* judgement (D1): 16:30 in Stockholm is late even
+    though it is 14:30 UTC. It stays `None` when no caffeine time was logged — "not answered"
+    and "no late coffee" are different facts, and the correlation engine must not confuse
+    them.
+
+    Always returns every column (see `recovery_values`).
+    """
+    if checkin is None:
+        return dict.fromkeys(CHECKIN_COLUMNS)
+
+    last_caffeine = checkin.last_caffeine_at
+    if last_caffeine is None:
+        after_cutoff: bool | None = None
+    else:
+        after_cutoff = as_utc(last_caffeine).astimezone(tz).hour >= CAFFEINE_CUTOFF_HOUR
+
+    return {
+        "checkin_mood": checkin.mood,
+        "checkin_energy": checkin.energy,
+        "checkin_stress": checkin.stress,
+        "checkin_soreness": checkin.soreness,
+        "alcohol_units": checkin.alcohol_units,
+        "caffeine_after_14": after_cutoff,
+        "last_caffeine_at": last_caffeine,
+    }
+
+
+def weather_values(weather: WeatherDaily | None) -> dict[str, Any]:
+    """The weather / daylight columns. Always returns every column (see `recovery_values`)."""
+    if weather is None:
+        return dict.fromkeys(WEATHER_COLUMNS)
+    return {
+        "weather_temp_min_c": weather.temp_min_c,
+        "weather_temp_max_c": weather.temp_max_c,
+        "daylight_seconds": weather.daylight_seconds,
+        "sunrise": weather.sunrise,
+        "sunset": weather.sunset,
+    }
+
+
+def _checkin_for_date(db: Session, day: date) -> CheckinDaily | None:
+    """The check-in logged for `day`. Keyed by date already — no attribution needed."""
+    return db.execute(select(CheckinDaily).where(CheckinDaily.date == day)).scalar_one_or_none()
+
+
+def _weather_for_date(db: Session, day: date) -> WeatherDaily | None:
+    """That date's weather. `date` is unique per source, so pick the first deterministically."""
+    return (
+        db.execute(select(WeatherDaily).where(WeatherDaily.date == day).order_by(WeatherDaily.id))
+        .scalars()
+        .first()
+    )
+
+
 def _recovery_for_date(
     db: Session, day: date, tz: ZoneInfo, sleep: SleepSession | None
 ) -> RecoveryDaily | None:
@@ -222,8 +308,20 @@ def summarize_date(db: Session, day: date, tz: ZoneInfo | None = None) -> dict[s
     cycle = _cycle_for_date(db, day, zone)
     workouts = _rows_starting_on(db, Workout, day, zone)
     readings = night_air_readings(db, day, zone)
+    checkin = _checkin_for_date(db, day)
 
-    if recovery is None and sleep is None and cycle is None and not workouts and not readings:
+    # Weather is deliberately *not* in this test. It exists for every date whether or not the
+    # owner was measured, so counting it would manufacture a summary row for every day the
+    # weather source has ever covered — exactly the empty-rows problem §5.1 guards against.
+    # A check-in does count: logging how the day felt is itself something that happened.
+    if (
+        recovery is None
+        and sleep is None
+        and cycle is None
+        and checkin is None
+        and not workouts
+        and not readings
+    ):
         return None
 
     values: dict[str, Any] = {}
@@ -231,6 +329,8 @@ def summarize_date(db: Session, day: date, tz: ZoneInfo | None = None) -> dict[s
     values.update(sleep_values(sleep))
     values.update(strain_values(cycle, workouts))
     values.update(air_values(readings))
+    values.update(checkin_values(checkin, zone))
+    values.update(weather_values(_weather_for_date(db, day)))
 
     readiness, components = compute_readiness(
         recovery_score=values.get("recovery_score"),

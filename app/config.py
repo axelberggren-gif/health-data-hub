@@ -29,6 +29,13 @@ class Settings(BaseSettings):
     home_lat: float = 0.0
     home_lon: float = 0.0
 
+    # --- Weather / daylight (tech spec D7) ---
+    # Open-Meteo is free and keyless, so there is nothing to authenticate — the only gate
+    # is `home_lat`/`home_lon` above. Two hosts: the forecast endpoint covers roughly the
+    # last 90 days plus the forecast, the archive endpoint covers deep history.
+    open_meteo_forecast_url: str = "https://api.open-meteo.com/v1/forecast"
+    open_meteo_archive_url: str = "https://archive-api.open-meteo.com/v1/archive"
+
     # --- Derived layer (tech spec §5) ---
     # The derivation job is local computation over data already in the store — no
     # credentials, no network — so it runs by default. It ticks once a day at

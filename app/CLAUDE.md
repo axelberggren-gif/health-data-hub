@@ -15,7 +15,8 @@ store (`models.py`) → consumers (export, future insights)**.
 - `db.py` — engine, `SessionLocal`, `Base`, `get_db()` dependency, `init_db()` (dev `create_all`;
   production uses Alembic).
 - `models.py` — the canonical schema (recovery, sleep + stages, workout, cycle, profile, body,
-  air quality, vitals) + the `SourceRecord` provenance mixin, and the *derived* tables
+  air quality, vitals, check-in, intake, weather, and the reserved `biomarker` /
+  `nutrition_entry`) + the `SourceRecord` provenance mixin, and the *derived* tables
   (`daily_summary`, `baseline`, `insight_card`) written only by `derived/`.
 - `scheduler.py` — background jobs: the optional Mill poller and the daily derivation tick
   (plus a startup catch-up when the derived layer has gone stale).
@@ -33,6 +34,10 @@ store (`models.py`) → consumers (export, future insights)**.
   migration-aware path and an ADR (see `docs/decisions/`), not ad hoc.
 
 ## Recent changes
+- V1 M3: manual input and weather are now ordinary sources. New canonical tables
+  `checkin_daily`, `intake_event`, `weather_daily` plus the reserved-empty `biomarker` and
+  `nutrition_entry`, all in Alembic revision `0003`; `Settings` gained
+  `open_meteo_forecast_url` / `open_meteo_archive_url`. See ADR-0011.
 - V1 M1 + M2: added `derived/` — the layer that rolls the canonical store up into one
   `daily_summary` row per local date, plus baselines, readiness and anomaly flags. New tables
   `daily_summary` / `baseline` / `insight_card` and `sleep_session.sleep_debt_ms` ship in

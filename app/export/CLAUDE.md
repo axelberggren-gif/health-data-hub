@@ -21,4 +21,8 @@ Read the canonical store and emit JSON / CSV (a zip) — the foundation for down
 - No personal/health data written to a tracked path — only to the gitignored `exports/`.
 
 ## Recent changes
+- V1 M3: `EXPORT_MODELS` gained the five new canonical tables (`checkin_daily`,
+  `intake_event`, `weather_daily`, and the reserved-empty `biomarker` / `nutrition_entry`),
+  so an export stays a complete copy of the canonical store rather than silently omitting
+  the newest inputs.
 - Documented the canonical-only + no-commit rules (initial setup).

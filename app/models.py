@@ -277,6 +277,134 @@ class VitalsTimeseries(Base):
 
 
 # --------------------------------------------------------------------------
+# Manual input & context (tech spec D3 / D7)
+#
+# These are canonical tables like any other — they just arrive by a POST or a keyless
+# public API instead of an OAuth poll. `manual` and `open_meteo` are ordinary registered
+# sources (app/sources/), so the same `(source, source_external_id)` identity and the same
+# `upsert()` write path apply.
+# --------------------------------------------------------------------------
+class CheckinDaily(SourceRecord, Base):
+    """The daily subjective check-in: how the day actually felt (A3/A5).
+
+    Keyed on the **local date** (`source_external_id = "checkin:2026-07-02"`), which is what
+    makes the form editable: submitting it again in the evening corrects the morning's answer
+    instead of stacking a second opinion for the same day.
+    """
+
+    __tablename__ = "checkin_daily"
+    __table_args__ = (
+        UniqueConstraint("source", "source_external_id", name="uq_checkin_source_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    date: Mapped[dt_date] = mapped_column(Date, unique=True, index=True)
+
+    #: 1-5 scales; null means "not answered", which is not the same as a low score.
+    mood: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    energy: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    stress: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    soreness: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    alcohol_units: Mapped[float | None] = mapped_column(Float, nullable=True)
+    last_caffeine_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    note: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
+class IntakeEvent(SourceRecord, Base):
+    """A supplement / vitamin / medication taken at a point in time (A10).
+
+    Keyed on a **client-generated UUID** rather than a timestamp: the phone posts this over a
+    connection that drops, and a retry must not log the same magnesium twice.
+    """
+
+    __tablename__ = "intake_event"
+    __table_args__ = (UniqueConstraint("source", "source_external_id", name="uq_intake_source_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    name: Mapped[str] = mapped_column(String, index=True)
+    kind: Mapped[str] = mapped_column(String, index=True)  # vitamin|supplement|medication
+    dose: Mapped[float | None] = mapped_column(Float, nullable=True)
+    unit: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
+class WeatherDaily(SourceRecord, Base):
+    """Outdoor weather and daylight for one local date (A4, from Open-Meteo).
+
+    `date` is unique *per source* rather than globally: unlike a check-in, a second weather
+    provider is a plausible future, and two providers disagreeing about a day is data, not a
+    conflict.
+    """
+
+    __tablename__ = "weather_daily"
+    __table_args__ = (
+        UniqueConstraint("source", "source_external_id", name="uq_weather_source_id"),
+        UniqueConstraint("source", "date", name="uq_weather_source_date"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    date: Mapped[dt_date] = mapped_column(Date, index=True)
+    temp_min_c: Mapped[float | None] = mapped_column(Float, nullable=True)
+    temp_max_c: Mapped[float | None] = mapped_column(Float, nullable=True)
+    precipitation_mm: Mapped[float | None] = mapped_column(Float, nullable=True)
+    sunrise: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    sunset: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    daylight_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    #: Open-Meteo's pollen coverage is regional; left null where it is not served.
+    pollen_index: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+
+# --------------------------------------------------------------------------
+# Reserved, created empty (tech spec §4, SUPER_APP_PLAN §3)
+#
+# No writer, no route, no UI in V1. The point of reserving them now is that adding labs or
+# food logging later is an adapter plus a form, not a migration against months of live data.
+# --------------------------------------------------------------------------
+class Biomarker(SourceRecord, Base):
+    """One marker from one blood test / lab panel (A8). Reserved: no writer in V1."""
+
+    __tablename__ = "biomarker"
+    __table_args__ = (
+        UniqueConstraint("source", "source_external_id", name="uq_biomarker_source_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    taken_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), index=True, nullable=True
+    )
+    panel: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
+    marker: Mapped[str | None] = mapped_column(String, index=True, nullable=True)  # ferritin|...
+    value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    unit: Mapped[str | None] = mapped_column(String, nullable=True)
+    ref_low: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ref_high: Mapped[float | None] = mapped_column(Float, nullable=True)
+    flag: Mapped[str | None] = mapped_column(String, nullable=True)  # low|normal|high
+
+
+class NutritionEntry(SourceRecord, Base):
+    """One eaten thing, with calories and macros (A11). Reserved: no writer in V1."""
+
+    __tablename__ = "nutrition_entry"
+    __table_args__ = (
+        UniqueConstraint("source", "source_external_id", name="uq_nutrition_source_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ts: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True, nullable=True)
+    description: Mapped[str | None] = mapped_column(String, nullable=True)
+    calories: Mapped[float | None] = mapped_column(Float, nullable=True)
+    protein_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    carbs_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    fat_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    fiber_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    #: Micronutrients are open-ended and provider-specific; a JSON bag beats 40 null columns.
+    micros: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+
+# --------------------------------------------------------------------------
 # Derived tables (written by app/derived/, never by a source)
 #
 # These are *computed* from the canonical tables above, so they are safe to drop and
@@ -423,4 +551,9 @@ EXPORT_MODELS: list[type[Base]] = [
     BodyMeasurement,
     AirQualityReading,
     VitalsTimeseries,
+    CheckinDaily,
+    IntakeEvent,
+    WeatherDaily,
+    Biomarker,
+    NutritionEntry,
 ]

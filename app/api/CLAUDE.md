@@ -14,6 +14,9 @@ The HTTP surface: OAuth connect flow, sync triggers, export, health check, Mill 
 - `routes_export.py` — JSON/CSV export over the canonical store.
 - `routes_derived.py` — `POST /derived/run?days_back=N`: recompute daily summaries, baselines
   and flags, returning per-step counts. The manual "refresh" companion to the scheduler tick.
+- `routes_log.py` — the daily log: `POST /log/checkin` (upsert today's or `?date=`'s
+  check-in) and `POST /log/intake` (idempotent on the caller's `client_id`). Validates and
+  resolves the date, then hands the values to the `manual` source — it never writes directly.
 - `routes_health.py` — `GET /health` → `{"status": "ok"}`.
 - `routes_mill.py` — Mill diagnostics.
 
@@ -30,6 +33,9 @@ The HTTP surface: OAuth connect flow, sync triggers, export, health check, Mill 
   before any multi-process or production deployment.
 
 ## Recent changes
+- V1 M3: added `routes_log.py` (`POST /log/checkin`, `POST /log/intake`) behind
+  `require_token`, with `/log/checkin` appended to `PROTECTED_ROUTES` in `tests/test_auth.py`
+  (M3-T09). See ADR-0011.
 - V1 M2: added `routes_derived.py` (`POST /derived/run`), mounted behind `require_token` and
   added to `PROTECTED_ROUTES` in `tests/test_auth.py` rather than tested separately.
 - V1 M0: added `deps.py` with `require_token` — the shared-token auth wall (ADR-0008). It is

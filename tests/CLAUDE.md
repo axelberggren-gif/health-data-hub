@@ -13,8 +13,11 @@ required check.
   (session with the day-scoped tables emptied) and `client` (TestClient) fixtures. Also sets
   `DERIVED_SCHEDULE_ENABLED=false` so booting the app in a test never derives underneath it.
 - `factories.py` — the shared fixture builders (TEST_SPEC rule 5): `make_sleep`,
-  `make_recovery`, `make_cycle`, `make_workout`, `make_air_reading`, `make_summary`, plus
-  `local()` / `utc()` helpers. Timestamps are Europe/Stockholm local unless already aware.
+  `make_recovery`, `make_cycle`, `make_workout`, `make_air_reading`, `make_checkin`,
+  `make_intake`, `make_weather`, `make_summary`, plus `local()` / `utc()` helpers. Timestamps
+  are Europe/Stockholm local unless already aware.
+- `fixtures/` — checked-in API response fixtures with **fabricated** values in the real
+  response shape (`open_meteo_daily.json`). Never a captured real payload.
 - `test_smoke.py` — boots the app via TestClient (the "does it actually start?" check) and hits
   `/` and `/health`.
 - `test_orchestrator_idempotency.py` — guards INVARIANT #2 (idempotent upsert + the DB unique
@@ -37,6 +40,12 @@ required check.
 - Never read the real `.env` or `health.db` from a test.
 
 ## Recent changes
+- V1 M3: added `test_manual_source.py` (M3-T01…T03, T08), `test_weather_source.py`
+  (M3-T04…T06), `test_reserved_tables.py` (M3-T07) and `test_rollup_manual_weather.py`
+  (M3-T10/T11, added to the catalog under its rule 4), plus the `make_checkin` /
+  `make_intake` / `make_weather` builders and the `open_meteo_daily.json` fixture.
+  `/log/checkin` was appended to `PROTECTED_ROUTES` (M3-T09) and `checkin_daily` /
+  `intake_event` / `weather_daily` to the `clean_db` day-scoped wipe.
 - V1 M1 + M2: added `factories.py` (shared builders), the `clean_db` fixture, and
   `test_dates.py` (M1-T01…T08), `test_derived_job.py`, `test_readiness.py`,
   `test_baselines.py`, `test_flags.py` (M2-T01…T11) plus `test_scheduler.py` for the

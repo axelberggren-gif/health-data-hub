@@ -25,6 +25,10 @@ Oura/Garmin*  ─┘                  Consumers: Export (JSON/CSV) · Analytics*
   `mapper` (WHOOP→canonical), `source` (`WhoopApiSource`).
 - `app/sources/mill/` — the Mill Sense source: `auth` (username/password), `client`
   (device discovery), `mapper`, `source` (`MillSenseSource`) — indoor air quality.
+- `app/sources/manual/` — the daily log as a source: check-in + supplement intake, arriving
+  by `POST /log/*` rather than a poll (`ManualSource`).
+- `app/sources/weather/` — Open-Meteo weather and daylight for the home location
+  (`OpenMeteoSource`); off unless `HOME_LAT`/`HOME_LON` are set.
 - `app/sync/orchestrator.py` — idempotent `upsert` on `(source, source_external_id)` + cursors.
 - `app/models.py` — the canonical schema (recovery, sleep+stages, workout, cycle, profile,
   body, **air quality**, vitals).
@@ -66,6 +70,12 @@ uvicorn app.main:app --reload
 - `POST /sync/mill_sense/incremental` → capture one air-quality reading per sensor
 - `POST /sync/mill_sense/backfill?days=7` → best-effort historical air quality
 - `GET /mill/diagnose` → dump raw Mill payloads (confirm the history endpoint)
+- `POST /sync/open_meteo/backfill?days=183` → six months of weather and daylight
+  (needs `HOME_LAT`/`HOME_LON`; otherwise the source stays off)
+- `POST /log/checkin` → mood/energy/stress/soreness, alcohol, last caffeine — one editable
+  row per day; `?date=YYYY-MM-DD` to log a past day
+- `POST /log/intake` → a supplement or medication, idempotent on the caller's `client_id`
+- `POST /derived/run?days_back=7` → recompute daily summaries, baselines and flags
 - `GET /export/json` · `GET /export/csv` → take your data out
 
 ### Collecting air quality overnight

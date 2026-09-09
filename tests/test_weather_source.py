@@ -69,9 +69,7 @@ class _FakeClient:
 def http(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     """Replace the adapter's HTTP client with a recorder returning the fixture payload."""
     recorder = SimpleNamespace(calls=[], payload=FIXTURE)
-    monkeypatch.setattr(
-        weather_client.httpx, "Client", lambda *a, **k: _FakeClient(recorder)
-    )
+    monkeypatch.setattr(weather_client.httpx, "Client", lambda *a, **k: _FakeClient(recorder))
     return recorder
 
 
@@ -167,9 +165,7 @@ def test_weather_is_disabled_without_coordinates(clean_db, no_home_coords, http)
     assert _rows(clean_db) == []
 
 
-def test_weather_cursor_advances_and_narrows_the_next_request(
-    clean_db, home_coords, http
-) -> None:
+def test_weather_cursor_advances_and_narrows_the_next_request(clean_db, home_coords, http) -> None:
     """M3-T06: after syncing through D the next sync asks only for dates after D."""
     source = get_source("open_meteo", clean_db)
 
@@ -182,6 +178,21 @@ def test_weather_cursor_advances_and_narrows_the_next_request(
 
     assert second_sync_calls, "the second sync made no request"
     assert _earliest_start(second_sync_calls) == "2026-07-04"
+
+
+def test_weather_backfill_is_idempotent(clean_db, home_coords, http) -> None:
+    """M3-T04: running the same backfill twice updates three rows, it does not add three.
+
+    The house invariant (tech spec §14): every write path gets a run-twice test.
+    """
+    source = get_source("open_meteo", clean_db)
+    window = (datetime(2026, 7, 1, tzinfo=UTC), datetime(2026, 7, 3, tzinfo=UTC))
+
+    source.backfill(*window)
+    first_ids = [row.id for row in _rows(clean_db)]
+
+    source.backfill(*window)
+    assert [row.id for row in _rows(clean_db)] == first_ids
 
 
 def test_weather_source_honors_the_seam(clean_db) -> None:

@@ -6,6 +6,34 @@ PR that makes the change.
 ## Unreleased
 
 ### Added
+- V1 milestone **M3**: the two inputs the store was missing — the owner's own log and the
+  weather outside (ADR-0011) (ax).
+  - **Daily log** (`POST /log/checkin`, `POST /log/intake`, behind the app token): mood,
+    energy, stress and soreness on 1–5 scales, alcohol units, the time of the last coffee, a
+    free-text note, and supplements/medication with dose. The check-in is keyed to its local
+    date, so filling the form again in the evening *corrects* the morning's answer instead of
+    logging a second opinion; an intake event is keyed to a UUID the phone generates, so a
+    request retried on a dropped connection cannot double-log the same magnesium.
+  - **Weather & daylight** (Open-Meteo, no account, no API key): daily min/max temperature,
+    precipitation, sunrise, sunset and daylight seconds for the home location. With
+    `HOME_LAT`/`HOME_LON` left at their defaults the source is **off** and makes no network
+    call at all — Open-Meteo would otherwise happily report the weather in the Gulf of Guinea.
+    Deep history and recent days come from its two different endpoints automatically, so a
+    six-month backfill is two requests.
+  - Both arrive as **ordinary registered sources** (`manual`, `open_meteo`) through the same
+    seam and the same idempotent write path as WHOOP and Mill — not as a side door into the
+    database.
+  - The check-in and the weather now reach `daily_summary`, including a `caffeine_after_14`
+    flag derived from the local clock. A check-in on its own is enough to make a day worth
+    summarizing; weather on its own is not, so the store cannot fill with weather-only days.
+  - `biomarker` and `nutrition_entry` ship **empty** — no writer, no route, no UI. Reserving
+    the shape now means adding blood panels or food logging later is a form, not a migration
+    against months of live data.
+  - New Alembic revision `0003` (purely additive); the five new tables are included in the
+    JSON/CSV export.
+  - Tests M3-T01 … M3-T09 from the V1 catalog, plus M3-T10/T11 added to it for the rollup
+    wiring. Every HTTP call in the weather tests is mocked against a checked-in fixture with
+    fabricated values — no network, no real coordinates.
 - V1 milestones **M1 + M2**: the derived layer — the app now draws conclusions instead of only
   storing data (ADR-0009) (ax).
   - `app/derived/dates.py` (M1): day attribution. Every derived date is a *local* date in

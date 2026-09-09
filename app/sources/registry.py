@@ -5,12 +5,16 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from .base import HealthDataSource
+from .manual.source import ManualSource
 from .mill.source import MillSenseSource
+from .weather.source import OpenMeteoSource
 from .whoop.source import WhoopApiSource
 
 _SOURCES: dict[str, type[HealthDataSource]] = {
     WhoopApiSource.name: WhoopApiSource,
     MillSenseSource.name: MillSenseSource,
+    ManualSource.name: ManualSource,
+    OpenMeteoSource.name: OpenMeteoSource,
     # Future: HealthKitSource, WhoopBleSource, OuraSource, GarminSource, ...
 }
 

@@ -39,13 +39,19 @@ Entry points are `POST /derived/run` (`app/api/routes_derived.py`) and the sched
 - Baseline windows **exclude the day being judged**; z-scores need `n >= 14` and `sd > 0`.
 - Readiness is `None` when recovery is missing or `user_calibrating` — never invented — and
   always stores the components and weights actually used.
-- A date with no upstream data gets **no** summary row.
+- A date with no upstream data gets **no** summary row. A **check-in counts** as upstream
+  data (logging how a day felt is something that happened); **weather does not** — it exists
+  for every date regardless, so counting it would manufacture a row per covered day
+  (ADR-0011).
 - Illness-warning wording stays **non-diagnostic**: it describes measurements, never a
   condition.
 - Nothing in `app/sources/` may import from here; this layer reads canonical models and does
   not care which adapter produced them.
 
 ## Recent changes
+- V1 M3: `summarize_date` now also reads `checkin_daily` and `weather_daily` into the
+  summary's check-in and weather columns, deriving `caffeine_after_14` from
+  `last_caffeine_at` in the **local** clock (`CAFFEINE_CUTOFF_HOUR`). See ADR-0011.
 - V1 M1 + M2: created the layer — day attribution (`dates.py`), the rollup, readiness,
   baselines, flags and the derivation job, with `daily_summary` / `baseline` / `insight_card`
   landing in Alembic revision `0002`. See ADR-0009.

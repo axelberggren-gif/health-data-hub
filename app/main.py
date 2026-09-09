@@ -10,6 +10,7 @@ from .api import (
     routes_derived,
     routes_export,
     routes_health,
+    routes_log,
     routes_mill,
     routes_oauth,
     routes_sync,
@@ -41,6 +42,7 @@ app.include_router(routes_oauth.router)
 app.include_router(routes_sync.router)
 app.include_router(routes_export.router)
 app.include_router(routes_derived.router)
+app.include_router(routes_log.router)
 app.include_router(routes_mill.router)
 
 

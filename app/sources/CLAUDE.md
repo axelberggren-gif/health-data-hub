@@ -16,6 +16,12 @@ touching the store, sync, or export layers.
   (WHOOP → canonical), `source` (`WhoopApiSource`).
 - `mill/` — the Mill Sense source: `auth`, `client`, `history`, `mapper`, `source`
   (`MillSenseSource`) — indoor air quality.
+- `manual/` — the daily log as a source: `source` (`ManualSource`) — check-in + intake, no
+  polling. Has its own `CLAUDE.md`.
+- `weather/` — Open-Meteo: `client`, `mapper`, `source` (`OpenMeteoSource`) — weather and
+  daylight. Has its own `CLAUDE.md`.
+- `localtime.py` — `home_tz()` / `local_midnight_utc()`, shared by the date-keyed adapters
+  (a source may not import `app.derived`, which has the richer versions).
 
 ## Conventions
 - A source's `__init__` takes the DB session (`db`); construction happens via the registry.
@@ -32,6 +38,10 @@ touching the store, sync, or export layers.
 - Tokens/credentials are read from `Settings`; never logged, never committed.
 
 ## Recent changes
+- V1 M3: added the `manual` and `open_meteo` adapters (each with its own `CLAUDE.md`) and
+  `localtime.py`. Two identity rules worth knowing: a check-in keys on its local date so the
+  form is editable, and an intake event keys on a client-generated UUID so a retried POST
+  cannot double-log. See ADR-0011.
 - V1 M2: the WHOOP sleep mapper now carries `sleep_debt_ms`
   (`score.sleep_needed.need_from_sleep_debt_milli`) into the canonical model, so the derived
   layer never has to read a source payload out of `raw`. The derived layer is not a source and
