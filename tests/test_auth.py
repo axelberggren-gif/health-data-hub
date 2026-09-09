@@ -3,9 +3,10 @@
 A single shared bearer token guards the data routes. Empty token => auth disabled, which
 is the local-dev default; set it and every protected prefix must refuse anonymous callers.
 
-**Extend, don't duplicate:** as `/dashboard`, `/log` and `/insights` land in later
-milestones, add their prefixes to `PROTECTED_ROUTES` — M0-T04 is parametrized over it and
-M3-T09 / M6-T05 are satisfied by that extension.
+**Extend, don't duplicate:** as `/dashboard` and `/insights` land in later milestones, add
+their prefixes to `PROTECTED_ROUTES` — M0-T04 is parametrized over it and M3-T09 / M6-T05
+are satisfied by that extension. `/log` was added in M3 (M3-T09); one representative route
+per protected *router* covers the router-level dependency that guards all of its paths.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ TOKEN = "test-token-123"
 PROTECTED_ROUTES = [
     ("GET", "/export/json"),
     ("POST", "/derived/run"),
+    ("POST", "/log/checkin"),
 ]
 
 

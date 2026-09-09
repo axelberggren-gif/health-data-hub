@@ -27,10 +27,13 @@ from sqlalchemy.orm import Session
 from app.derived import DERIVED_SOURCE
 from app.models import (
     AirQualityReading,
+    CheckinDaily,
     CycleDay,
     DailySummary,
+    IntakeEvent,
     RecoveryDaily,
     SleepSession,
+    WeatherDaily,
     Workout,
 )
 
@@ -239,6 +242,95 @@ def make_air_reading(
             temp_c=temp,
             humidity_pct=humidity,
             tvoc_ppb=tvoc,
+        ),
+    )
+
+
+def make_checkin(
+    db: Session,
+    *,
+    day: date,
+    mood: int | None = 4,
+    energy: int | None = 3,
+    stress: int | None = 2,
+    soreness: int | None = 2,
+    alcohol_units: float | None = 0.0,
+    last_caffeine_at: datetime | None = None,
+    note: str | None = None,
+    source: str = "manual",
+) -> CheckinDaily:
+    """A daily check-in, keyed to its local date exactly as `POST /log/checkin` writes it."""
+    return _add(
+        db,
+        CheckinDaily(
+            source=source,
+            source_external_id=f"checkin:{day.isoformat()}",
+            recorded_at=_to_utc(datetime.combine(day, datetime.min.time(), tzinfo=HOME_TZ)),
+            date=day,
+            mood=mood,
+            energy=energy,
+            stress=stress,
+            soreness=soreness,
+            alcohol_units=alcohol_units,
+            last_caffeine_at=_to_utc(last_caffeine_at) if last_caffeine_at else None,
+            note=note,
+        ),
+    )
+
+
+def make_intake(
+    db: Session,
+    *,
+    ts: datetime,
+    name: str = "magnesium",
+    kind: str = "supplement",
+    dose: float | None = 300.0,
+    unit: str | None = "mg",
+    client_id: str | None = None,
+    source: str = "manual",
+) -> IntakeEvent:
+    """One supplement / medication event, keyed on the client-generated id."""
+    return _add(
+        db,
+        IntakeEvent(
+            source=source,
+            source_external_id=client_id or _next_id("intake"),
+            recorded_at=_to_utc(ts),
+            ts=_to_utc(ts),
+            name=name,
+            kind=kind,
+            dose=dose,
+            unit=unit,
+        ),
+    )
+
+
+def make_weather(
+    db: Session,
+    *,
+    day: date,
+    temp_min_c: float | None = 8.0,
+    temp_max_c: float | None = 17.0,
+    precipitation_mm: float | None = 0.0,
+    sunrise: datetime | None = None,
+    sunset: datetime | None = None,
+    daylight_seconds: int | None = 50400,
+    source: str = "open_meteo",
+) -> WeatherDaily:
+    """One day of weather / daylight, keyed to its local date like the adapter writes it."""
+    return _add(
+        db,
+        WeatherDaily(
+            source=source,
+            source_external_id=day.isoformat(),
+            recorded_at=_to_utc(datetime.combine(day, datetime.min.time(), tzinfo=HOME_TZ)),
+            date=day,
+            temp_min_c=temp_min_c,
+            temp_max_c=temp_max_c,
+            precipitation_mm=precipitation_mm,
+            sunrise=_to_utc(sunrise) if sunrise else None,
+            sunset=_to_utc(sunset) if sunset else None,
+            daylight_seconds=daylight_seconds,
         ),
     )
 

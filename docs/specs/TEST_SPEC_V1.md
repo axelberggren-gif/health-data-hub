@@ -128,6 +128,15 @@ which is where the `checkin_daily` table it writes to is created; `make_summary`
 | **M3-T07** | **Reserved tables exist.** `biomarker` and `nutrition_entry` are in the metadata and the Alembic-migrated DB, each with the `(source, source_external_id)` unique constraint; inserting a duplicate key raises `IntegrityError`. No routes exist for them (`/log/biomarker` → 404). |
 | **M3-T08** | **Manual source honors the seam.** `get_source("manual", db)` resolves; `capabilities() == {"checkin", "intake"}`; `backfill()`/`sync_incremental()` return empty `SyncResult`s with zero counts and touch no tables. |
 | **M3-T09** | **Auth extension.** M0-T04's parametrized auth test now covers `/log/*` (extend, per M0-T04 note). |
+| **M3-T10** | **Check-in and weather reach the daily summary.** *(added during M3 — see note below.)* A date with a check-in and a `weather_daily` row rolls up with `checkin_mood`/`energy`/`stress`/`soreness`, `alcohol_units`, `weather_temp_min_c`/`temp_max_c`, `daylight_seconds`, `sunrise`/`sunset` populated; `caffeine_after_14` is derived from `last_caffeine_at` in the **local** clock (16:30 → `True`, 09:00 → `False`, absent → `None`). |
+| **M3-T11** | **Only a check-in makes a day.** *(added during M3 — see note below.)* A date whose sole input is a check-in gets a summary row (with `readiness_score is None`); a date whose sole input is weather gets **no** row (tech spec §5.1). |
+
+> **Added in M3 (catalog rule 4).** T10/T11 are additions, not corrections: the catalog stopped at
+> the source tables, but `daily_summary` reserves columns for both (tech spec §4, "filled by the
+> manual / open_meteo source in M3") and every downstream consumer reads the summary, so without
+> the rollup wiring M3 would land data nothing can reach. T11 pins the asymmetry that wiring
+> forces a decision on — a check-in is an act and makes a day worth summarizing; weather happens
+> regardless and must never manufacture a row.
 
 ## M4 — Correlation engine + training load
 
@@ -174,11 +183,11 @@ provider registry).
 | M0 | 5 | migrations replay · safe defaults · auth wall |
 | M1 | 8 | day/timezone correctness (the rollup foundation) |
 | M2 | 11 | idempotent derivation · explainable readiness · exact thresholds |
-| M3 | 9 | upsert-by-key for manual input · no-network adapters · schema reservations |
+| M3 | 11 | upsert-by-key for manual input · no-network adapters · schema reservations · manual/weather reach the rollup |
 | M4 | 6 | no spurious insights (FDR + gates) · deterministic cards |
 | M5 | 6 | **privacy whitelist** · key-less operation · cost cap · seam substitutability |
 | M6 | 5 | end-to-end round-trip · self-contained PWA · auth everywhere |
 
-50 cases total. M2-T02, M3-T01/T03, M4-T05 and M5-T02 are the direct heirs of the repo's
+52 cases total. M2-T02, M3-T01/T03, M4-T05 and M5-T02 are the direct heirs of the repo's
 two house invariants (idempotency, secrets/PII containment) — if you only run five tests
 before merging, run those.
