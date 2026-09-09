@@ -7,6 +7,8 @@
 The HTTP surface: OAuth connect flow, sync triggers, export, health check, Mill diagnostics.
 
 ## Key files
+- `deps.py` — shared dependencies. `require_token` is the app-token auth wall (ADR-0008);
+  mount it on any router that returns health data.
 - `routes_oauth.py` — WHOOP OAuth: `/auth/whoop/login` (redirect) + `/auth/whoop/callback`
   (validates CSRF `state`, exchanges code, stores tokens in `WhoopConnection`).
 - `routes_sync.py` — `/sync/{source}/backfill` + `/sync/{source}/incremental`; resolves the
